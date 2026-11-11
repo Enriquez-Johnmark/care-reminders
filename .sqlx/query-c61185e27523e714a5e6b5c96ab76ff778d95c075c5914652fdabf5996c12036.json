@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select a.draft_id, a.content_hash, a.approved_by, a.approved_at, d.text\n             from approvals a join drafts d on d.tenant_id = a.tenant_id and d.id = a.draft_id\n             where a.tenant_id = $1 and a.reminder_id = $2\n               and d.attempt = (select max(attempt) from drafts where tenant_id = $1 and reminder_id = $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "draft_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "approvals",
+            "name": "draft_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "content_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "approvals",
+            "name": "content_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "approved_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "approvals",
+            "name": "approved_by"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "approved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "approvals",
+            "name": "approved_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c61185e27523e714a5e6b5c96ab76ff778d95c075c5914652fdabf5996c12036"
+}

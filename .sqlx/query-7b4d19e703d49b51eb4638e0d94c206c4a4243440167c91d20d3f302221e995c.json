@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into approvals (draft_id, tenant_id, reminder_id, content_hash, approved_by, approved_at)\n             values ($1, $2, $3, $4, $5, $6) on conflict (draft_id) do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b4d19e703d49b51eb4638e0d94c206c4a4243440167c91d20d3f302221e995c"
+}

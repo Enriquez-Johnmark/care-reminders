@@ -252,89 +252,16 @@ impl<M: LanguageModel> Drafter<M> {
         number: u8,
         tone: Tone,
     ) -> Result<NewDraft, sqlx::Error> {
-        let Some(model) = &self.model else {
-            let text = template(number);
-            let checked = check(&text);
-            return Ok(NewDraft {
-                source: "template",
-                model: None,
-                text,
-                checked,
-            });
-        };
-        let reply = model.complete(&request(kind, number, tone)).await;
-        let parsed = reply
-            .as_ref()
-            .map_err(LlmError::to_string)
-            .and_then(|reply| parse_answer(&reply.text).map_err(|err| err.to_string()));
-        let (usage, request_id) = match &reply {
-            Ok(reply) => (
-                Usage {
-                    input_tokens: reply.input_tokens,
-                    output_tokens: reply.output_tokens,
-                },
-                reply.request_id.clone(),
-            ),
-            Err(LlmError::Incomplete { usage, request_id, .. }) => (*usage, request_id.clone()),
-            Err(_) => (Usage::default(), None),
-        };
-        let outcome = match (&reply, &parsed) {
-            (Err(_), _) => Outcome::Failed,
-            (Ok(_), Err(_)) => Outcome::Invalid,
-            (Ok(_), Ok(_)) => Outcome::Ok,
-        };
-        let call = LlmCall {
-            tenant: clinic,
-            at: self.clock.now(),
-            model: model.model().to_owned(),
-            usage,
-            request_id,
-            outcome,
-        };
-        cost_log::record(&self.pool, &call).await?;
-        let answered_by = reply.as_ref().map(|reply| reply.model.clone()).ok();
-        Ok(match parsed {
-            // No answer at all: the clinic's template stands in, saying so.
-            Err(_) if reply.is_err() => {
-                let text = template(number);
-                let mut checked = check(&text);
-                let reason = reply.as_ref().err().map(ToString::to_string).unwrap_or_default();
-                checked.warnings.insert(
-                    0,
-                    format!("The model didn't answer ({reason}), so this is the clinic's template."),
-                );
-                NewDraft {
-                    source: "template",
-                    model: None,
-                    text,
-                    checked,
-                }
-            }
-            Ok(text) => {
-                let checked = check(&text);
-                NewDraft {
-                    source: "model",
-                    model: answered_by,
-                    text,
-                    checked,
-                }
-            }
-            // An answer that can't be read blocks the draft (C1); the
-            // coordinator can use the template or ask again.
-            Err(reason) => NewDraft {
-                source: "model",
-                model: answered_by.or_else(|| Some(model.model().to_owned())),
-                text: String::new(),
-                checked: Checked {
-                    problems: vec![Problem {
-                        check: Check::Answer,
-                        detail: reason,
-                    }],
-                    warnings: Vec::new(),
-                    grade: 0.0,
-                },
-            },
-        })
+        write_draft(
+            &self.pool,
+            self.clock.as_ref(),
+            self.model.as_ref(),
+            clinic,
+            kind,
+            number,
+            tone,
+        )
+        .await
     }
 
     async fn store(
@@ -377,4 +304,101 @@ impl<M: LanguageModel> Drafter<M> {
         tx.commit().await?;
         Ok(true)
     }
+}
+
+/// Reminder `number`'s draft of a follow-up of `kind`: worded by `model`,
+/// or the clinic's template when there is none or it doesn't answer; then
+/// checked. Every model call is in the cost log.
+pub(crate) async fn write_draft<M: LanguageModel>(
+    pool: &PgPool,
+    clock: &dyn Clock,
+    model: Option<&M>,
+    clinic: ClinicId,
+    kind: Kind,
+    number: u8,
+    tone: Tone,
+) -> Result<NewDraft, sqlx::Error> {
+    let Some(model) = model else {
+        let text = template(number);
+        let checked = check(&text);
+        return Ok(NewDraft {
+            source: "template",
+            model: None,
+            text,
+            checked,
+        });
+    };
+    let reply = model.complete(&request(kind, number, tone)).await;
+    let parsed = reply
+        .as_ref()
+        .map_err(LlmError::to_string)
+        .and_then(|reply| parse_answer(&reply.text).map_err(|err| err.to_string()));
+    let (usage, request_id) = match &reply {
+        Ok(reply) => (
+            Usage {
+                input_tokens: reply.input_tokens,
+                output_tokens: reply.output_tokens,
+            },
+            reply.request_id.clone(),
+        ),
+        Err(LlmError::Incomplete { usage, request_id, .. }) => (*usage, request_id.clone()),
+        Err(_) => (Usage::default(), None),
+    };
+    let outcome = match (&reply, &parsed) {
+        (Err(_), _) => Outcome::Failed,
+        (Ok(_), Err(_)) => Outcome::Invalid,
+        (Ok(_), Ok(_)) => Outcome::Ok,
+    };
+    let call = LlmCall {
+        tenant: clinic,
+        at: clock.now(),
+        model: model.model().to_owned(),
+        usage,
+        request_id,
+        outcome,
+    };
+    cost_log::record(pool, &call).await?;
+    let answered_by = reply.as_ref().map(|reply| reply.model.clone()).ok();
+    Ok(match parsed {
+        // No answer at all: the clinic's template stands in, saying so.
+        Err(_) if reply.is_err() => {
+            let text = template(number);
+            let mut checked = check(&text);
+            let reason = reply.as_ref().err().map(ToString::to_string).unwrap_or_default();
+            checked.warnings.insert(
+                0,
+                format!("The model didn't answer ({reason}), so this is the clinic's template."),
+            );
+            NewDraft {
+                source: "template",
+                model: None,
+                text,
+                checked,
+            }
+        }
+        Ok(text) => {
+            let checked = check(&text);
+            NewDraft {
+                source: "model",
+                model: answered_by,
+                text,
+                checked,
+            }
+        }
+        // An answer that can't be read blocks the draft (C1); the
+        // coordinator can use the template or ask again.
+        Err(reason) => NewDraft {
+            source: "model",
+            model: answered_by.or_else(|| Some(model.model().to_owned())),
+            text: String::new(),
+            checked: Checked {
+                problems: vec![Problem {
+                    check: Check::Answer,
+                    detail: reason,
+                }],
+                warnings: Vec::new(),
+                grade: 0.0,
+            },
+        },
+    })
 }

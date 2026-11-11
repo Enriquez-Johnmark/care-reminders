@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select f.kind, r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,\n                    jsonb_array_length(d.problems) > 0 as \"blocked!\"\n             from reminders r\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1 and r.id = $2\n             order by d.attempt desc limit 1\n             for update of r",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "number",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "finished!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "draft",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "attempt",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "attempt"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "blocked!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "39206a518788aca1b9c6179dde286dc81d9c51ccfe54ffb6438fd46c01dffb36"
+}
