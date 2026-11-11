@@ -74,6 +74,12 @@ impl LanguageModel for Fake {
 /// their 40 follow-ups chosen.
 pub async fn practice(pool: &PgPool, clock: Arc<FixedClock>) -> ClinicId {
     let family = clinic(pool, "Example Family Practice", "family").await;
+    practice_in(pool, clock, family).await;
+    family
+}
+
+/// [`practice`]'s rules, patients and follow-ups, in the clinic `family`.
+pub async fn practice_in(pool: &PgPool, clock: Arc<FixedClock>, family: ClinicId) {
     Rules::new(pool.clone(), clock.clone())
         .install_defaults(family, "operator")
         .await
@@ -86,7 +92,6 @@ pub async fn practice(pool: &PgPool, clock: Arc<FixedClock>) -> ClinicId {
         .refresh(family, "operator")
         .await
         .unwrap();
-    family
 }
 
 use serde_json::{Value, json};

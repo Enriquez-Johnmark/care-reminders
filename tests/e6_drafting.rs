@@ -197,3 +197,31 @@ async fn e6_a_reminder_finished_late_keeps_the_gap_before_the_next(pool: PgPool)
 
     assert_eq!((six_days_on, seven_days_on), (0, 40));
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e6_planned_days_are_the_clinics_own_days(pool: PgPool) {
+    // 9 am on 10 November in Manila is 1 am in UTC.
+    let clock = std::sync::Arc::new(care_reminders::engine::clock::FixedClock::new(
+        time::macros::datetime!(2026-11-10 01:00 UTC),
+    ));
+    let family = common::clinic(&pool, "Example Family Practice", "family").await;
+    care_reminders::settings::set_time_zone(&pool, family, "Asia/Manila")
+        .await
+        .unwrap();
+    common::practice_in(&pool, clock.clone(), family).await;
+    let drafter = Drafter::new(pool.clone(), clock.clone(), Some(Fake(Some(GOOD_DRAFT))));
+    drafter.draft_due().await.unwrap();
+    finish(&pool, 1, clock.now()).await;
+
+    // 1 am on 17 November in Manila, still 16 November in UTC.
+    clock.advance(Duration::days(6) + Duration::hours(16));
+    let day_seven_in_manila = drafter.draft_due().await.unwrap();
+
+    assert_eq!(day_seven_in_manila, 40);
+}
+
+#[test]
+fn e6_an_unknown_time_zone_is_refused() {
+    assert!(care_reminders::settings::time_zone("Mars/Olympus").is_err());
+    assert!(care_reminders::settings::time_zone("Asia/Manila").is_ok());
+}

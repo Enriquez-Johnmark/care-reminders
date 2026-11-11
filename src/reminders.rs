@@ -17,6 +17,7 @@ use crate::engine::id_type;
 use crate::engine::llm::{LanguageModel, LlmError, Usage};
 use crate::fhir::Kind;
 use crate::records::ClinicId;
+use crate::sending_hours::local_day;
 
 id_type!(
     /// One reminder of a follow-up.
@@ -186,9 +187,10 @@ impl<M: LanguageModel> Drafter<M> {
     /// A system-wide worker: it reads across clinics, and every write names
     /// the row's clinic. Returns how many it drafted.
     pub async fn draft_due(&self) -> Result<usize, sqlx::Error> {
-        let today = self.clock.now().date();
+        let now = self.clock.now();
         let due = sqlx::query!(
             r#"select f.tenant_id, f.id, f.kind, f.selected_at, coalesce(s.tone, 'warm') as "tone!",
+                      coalesce(s.time_zone, 'America/New_York') as "time_zone!",
                       last.number as "last_number?", last.finished_at as "last_finished?"
                from follow_ups f
                left join clinic_settings s on s.tenant_id = f.tenant_id
@@ -212,12 +214,18 @@ impl<M: LanguageModel> Drafter<M> {
             // Planned from when the follow-up was chosen, but never sooner than
             // the same gap after the reminder before was finished, so a late
             // reminder doesn't bring the next one forward.
-            let mut planned_on = follow_up.selected_at.date() + Duration::days(*days);
+            // Days are the clinic's own.
+            let day = |at| local_day(at, &follow_up.time_zone);
+            let (Ok(today), Ok(selected_on)) = (day(now), day(follow_up.selected_at)) else {
+                continue;
+            };
+            let mut planned_on = selected_on + Duration::days(*days);
             if let (Some(finished), Some(before)) = (
                 follow_up.last_finished,
                 usize::try_from(number - 2).ok().and_then(|i| PLANNED_DAYS.get(i)),
             ) {
-                planned_on = planned_on.max(finished.date() + Duration::days(days - before));
+                let Ok(finished_on) = day(finished) else { continue };
+                planned_on = planned_on.max(finished_on + Duration::days(days - before));
             }
             if !previous_finished || planned_on > today {
                 continue;

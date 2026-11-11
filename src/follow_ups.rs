@@ -95,7 +95,10 @@ impl FollowUps {
     /// patient has since booked. Each step is logged, as done by `actor`.
     pub async fn refresh(&self, clinic: ClinicId, actor: &str) -> Result<Refreshed, sqlx::Error> {
         let now = self.clock.now();
-        let today = now.date();
+        // The clinic's own day (B1): a rule's "due by" is a date at the clinic.
+        let time_zone = crate::settings::get(&self.pool, clinic).await?.time_zone;
+        let today =
+            crate::sending_hours::local_day(now, &time_zone).map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
         let rules = Rules::new(self.pool.clone(), self.clock.clone())
             .current(clinic)
             .await?;

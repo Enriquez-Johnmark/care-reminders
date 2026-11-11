@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select f.tenant_id, f.id, f.kind, f.selected_at, coalesce(s.tone, 'warm') as \"tone!\",\n                      last.number as \"last_number?\", last.finished_at as \"last_finished?\"\n               from follow_ups f\n               left join clinic_settings s on s.tenant_id = f.tenant_id\n               left join lateral (\n                   select number, finished_at from reminders r\n                   where r.tenant_id = f.tenant_id and r.follow_up_id = f.id\n                   order by number desc limit 1\n               ) last on true\n               where f.stopped_at is null and coalesce(last.number, 0) < 3\n               order by f.selected_at, f.id",
+  "query": "select f.tenant_id, f.id, f.kind, f.selected_at, coalesce(s.tone, 'warm') as \"tone!\",\n                      coalesce(s.time_zone, 'America/New_York') as \"time_zone!\",\n                      last.number as \"last_number?\", last.finished_at as \"last_finished?\"\n               from follow_ups f\n               left join clinic_settings s on s.tenant_id = f.tenant_id\n               left join lateral (\n                   select number, finished_at from reminders r\n                   where r.tenant_id = f.tenant_id and r.follow_up_id = f.id\n                   order by number desc limit 1\n               ) last on true\n               where f.stopped_at is null and coalesce(last.number, 0) < 3\n               order by f.selected_at, f.id",
   "describe": {
     "columns": [
       {
@@ -55,6 +55,12 @@
       },
       {
         "ordinal": 5,
+        "name": "time_zone!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
         "name": "last_number?",
         "type_info": "Int2",
         "origin": {
@@ -65,7 +71,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "last_finished?",
         "type_info": "Timestamptz",
         "origin": {
@@ -85,9 +91,10 @@
       false,
       false,
       null,
+      null,
       false,
       true
     ]
   },
-  "hash": "77cf3988ae01cd446fa9bcb47d5f428e05f0bd456c6ba5b840edc41eece45674"
+  "hash": "99483bb36b6e366bc0c8d4070c52ee6665b3baf26d178b6943e83a072eeab2af"
 }

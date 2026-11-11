@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into clinic_settings (tenant_id, time_zone) values ($1, $2)\n         on conflict (tenant_id) do update set time_zone = excluded.time_zone",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d612e040adbe26e14eb55ea0eb4b7a4aeb396048ac8f34297e389d750337f595"
+}

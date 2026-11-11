@@ -11,7 +11,7 @@ use care_reminders::records::ClinicId;
 
 const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --name NAME --email EMAIL | \
                      clinic add-coordinator --clinic ID --email EMAIL --name NAME | \
-                     clinic set-phone --clinic ID --phone PHONE | \
+                     clinic set-phone --clinic ID --phone PHONE | clinic set-time-zone --clinic ID --zone ZONE | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
                      work [--recorded] | serve [--recorded] | outbox-drain | \
                      evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
@@ -81,6 +81,13 @@ async fn run() -> anyhow::Result<()> {
             let phone = option(&args, "--phone")?;
             care_reminders::settings::set_phone(&connect().await?, clinic, phone).await?;
             println!("{clinic}'s reminders give {phone}");
+            Ok(())
+        }
+        Some("clinic") if args.get(1).map(String::as_str) == Some("set-time-zone") => {
+            let clinic = clinic_option(&args)?;
+            let zone = option(&args, "--zone")?;
+            care_reminders::settings::set_time_zone(&connect().await?, clinic, zone).await?;
+            println!("{clinic} sends and chooses on {zone} time");
             Ok(())
         }
         Some("serve") => serve(args.iter().any(|arg| arg == "--recorded")).await,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select phone, tone from clinic_settings where tenant_id = $1",
+  "query": "select phone, tone, time_zone from clinic_settings where tenant_id = $1",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,17 @@
             "name": "tone"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "time_zone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clinic_settings",
+            "name": "time_zone"
+          }
+        }
       }
     ],
     "parameters": {
@@ -33,8 +44,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "6d8c040dd8aeba4ee4ddfd6baecedd0c79ac8e67715e8bcf7af5f2593fc5e4ec"
+  "hash": "a5adbe717a403b3440ca9b9220cc28cd6c76c9dca5cd1d8f5398e2c3bd1f1249"
 }
