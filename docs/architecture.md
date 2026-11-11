@@ -39,7 +39,7 @@ Checked in Nudgewright v0.4.5 before this was written:
   - system-wide workers (the outbox sender and job workers), which still name the row's tenant in every update;
   - login, before any clinic is known;
   - the opt-out page and the reply webhook, which find the follow-up from a signed code.
-- **The hourly fetch** is a sweep in the worker (`work`): each minute it fetches for every clinic not fetched from in the last hour, so a missed hour catches up and two workers can't fetch for the same clinic twice in an hour.
+- **The hourly fetch** is a sweep in the worker (`work`): each minute it fetches for every clinic not fetched from in the last hour, so a missed hour catches up. It assumes one worker; a second would need a lock on the clinic's row.
 - **FHIR fetching stays in this product.** Nudgewright's rule is that the engine holds nothing domain-specific, so the Lab Report Assistant's fetch code is copied and adapted here rather than moved into the engine.
 
 ## Who is due is decided by rules, never the model (Round 1, 2026-11-11)
