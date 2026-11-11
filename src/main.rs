@@ -13,7 +13,7 @@ const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --na
                      clinic add-coordinator --clinic ID --email EMAIL --name NAME | \
                      clinic set-phone --clinic ID --phone PHONE | clinic set-time-zone --clinic ID --zone ZONE | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
-                     work [--recorded] | serve [--recorded] | outbox-drain | \
+                     work [--recorded] | serve [--recorded] | outbox-drain | simulate-reply --clinic ID --patient FHIR_ID --text TEXT | \
                      evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
@@ -120,6 +120,32 @@ async fn run() -> anyhow::Result<()> {
         }
         Some("work") => work(&args).await,
         Some("outbox-drain") => outbox_drain().await,
+        Some("simulate-reply") => {
+            let clinic = clinic_option(&args)?;
+            let (patient, text) = (option(&args, "--patient")?, option(&args, "--text")?);
+            let master = care_reminders::engine::files::MasterKey::from_hex(
+                &std::env::var("MASTER_KEY").context("MASTER_KEY is not set (see .env.example)")?,
+            )
+            .context("MASTER_KEY is not 64 hex digits")?;
+            let setting = |name: &str, default: &str| std::env::var(name).unwrap_or_else(|_| default.to_owned());
+            let sending = care_reminders::sending::Sending::new(
+                &master,
+                &setting("PUBLIC_BASE_URL", "http://127.0.0.1:3000"),
+                &setting("REPLY_DOMAIN", "replies.example-family-practice.test"),
+            );
+            let received = care_reminders::sending::simulate_reply(
+                &connect().await?,
+                Arc::new(SystemClock),
+                &sending,
+                clinic,
+                patient,
+                text,
+            )
+            .await
+            .context("taking in the reply")?;
+            println!("{received:?}");
+            Ok(())
+        }
         Some("demo-data") => write_demo_data(),
         Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),

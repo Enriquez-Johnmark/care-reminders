@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select o.status, o.last_error, o.sent_at\n         from reminder_messages m join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id\n         where m.tenant_id = $1 and m.reminder_id = $2\n         order by m.created_at desc, m.message_id desc limit 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox_messages",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox_messages",
+            "name": "last_error"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "outbox_messages",
+            "name": "sent_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "d0c930ade15777d1f8072250358aae98cf2ba14ca6aebd0daf14fc4620e3608b"
+}

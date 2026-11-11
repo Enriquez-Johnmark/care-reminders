@@ -595,3 +595,40 @@ pub async fn delivery(
         }
     }))
 }
+
+/// For the demo, where no real mail comes in: a reply from patient
+/// `fhir_id` of `clinic` to their latest emailed reminder, as the webhook
+/// would take it in. `Unknown` if none was emailed.
+pub async fn simulate_reply(
+    pool: &PgPool,
+    clock: Arc<dyn Clock>,
+    sending: &Sending,
+    clinic: TenantId,
+    fhir_id: &str,
+    text: &str,
+) -> Result<Received, OutboxError> {
+    let row = sqlx::query!(
+        "select o.reply_to, o.to_address, o.id from reminder_messages m
+         join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id
+         join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id
+         join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id
+         join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id
+         where m.tenant_id = $1 and p.fhir_id = $2 and o.status = 'sent'
+         order by o.sent_at desc limit 1",
+        clinic.as_uuid(),
+        fhir_id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    let Some(row) = row else { return Ok(Received::Unknown) };
+    let email = crate::engine::inbound::InboundEmail {
+        key: format!("simulated:{}:{}", row.id, clock.now().unix_timestamp_nanos()),
+        from: row.to_address,
+        recipients: row.reply_to.into_iter().collect(),
+        subject: "Re: your reminder".to_owned(),
+        text: text.to_owned(),
+        automatic: false,
+        attachments: Vec::new(),
+    };
+    receive(pool, clock, sending, &email).await
+}

@@ -206,3 +206,40 @@ async fn f2_an_automatic_reply_a_changed_code_or_an_unsigned_post_stops_nothing(
     assert_eq!(stop_of(&s.pool, result).await, None);
     assert_eq!(s.count("select count(*) from replies").await, 0);
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f2_the_demos_simulated_reply_answers_the_patients_latest_emailed_reminder(pool: PgPool) {
+    let s = setup(pool).await;
+    for (draft, patient) in s.drafts().await {
+        if patient == "p01" {
+            s.approve(&draft).await;
+        }
+    }
+    // One a day: only one of Ana's two reminders goes today.
+    assert_eq!(s.send().await, 1);
+    let emailed: uuid::Uuid = sqlx::query_scalar(
+        "select r.follow_up_id from reminder_messages m join outbox_messages o on o.id = m.message_id
+         join reminders r on r.id = m.reminder_id where o.status = 'sent'",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+
+    let received = care_reminders::sending::simulate_reply(
+        &s.pool,
+        s.clock.clone(),
+        &common::sending(),
+        s.coordinator.tenant,
+        "p01",
+        "I'll call tomorrow.",
+    )
+    .await
+    .unwrap();
+
+    let stopped: Vec<uuid::Uuid> = sqlx::query_scalar("select id from follow_ups where stop = 'replied'")
+        .fetch_all(&s.pool)
+        .await
+        .unwrap();
+    assert_eq!(received, care_reminders::sending::Received::Reply(emailed.into()));
+    assert_eq!(stopped, [emailed]);
+}
