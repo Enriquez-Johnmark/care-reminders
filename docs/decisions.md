@@ -28,3 +28,8 @@ Approved by the owner, newest last.
 - **Architecture, Round 1** (all ten answered "yes"; `docs/architecture.md`): one Rust crate on Nudgewright v0.4.5; FHIR fetching copied and adapted from Lab Report Assistant, not moved into the engine; rules as plain functions with stored versions; one approval covers the text and the email (ADR 0001); sending rules in a pre-send check that holds or refuses; signed reply codes and a signed inbound webhook; the opt-out page from a signed link with a button; Flesch–Kincaid reading level; build order M1–M7.
 - **Build:** approved; M1 starts.
 - **Correction:** the spec has 43 acceptance criteria (A1–J1), not 42; the earlier total was miscounted, and no criterion changed.
+
+## 2026-11-11 (later)
+
+- **Standing approval:** the owner approved in advance every recommendation put to them ("approved if it's your recommendation, yes to all"). Each decision taken under it is marked *(standing approval)*.
+- **An overdue follow-up's date** *(standing approval)*: once the date to book by has passed, a reminder never gives it. "by", "before", "prior to", "preceding" or "until" `{due_by}` becomes "as soon as you can"; a draft that gives the date in any other words can't be filled, so the coordinator uses the template or rewords it.

@@ -273,6 +273,8 @@ impl Reviews {
             clinic_name: account.name,
             clinic_phone: settings.phone,
             due_by: current.due_by,
+            today: crate::sending_hours::local_day(self.clock.now(), &settings.time_zone)
+                .map_err(|err| ReviewError::CantFill(err.to_string()))?,
             opt_out_link: sending.opt_out_link(follow_up),
         };
         let body =

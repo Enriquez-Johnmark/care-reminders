@@ -120,6 +120,9 @@ pub struct FillIns {
     pub clinic_phone: String,
     /// The date to book by.
     pub due_by: Date,
+    /// The clinic's day today: once `due_by` has passed, the patient is
+    /// asked to book as soon as they can instead of by a date gone by.
+    pub today: Date,
     /// The link to stop these reminders.
     pub opt_out_link: String,
 }
@@ -130,6 +133,10 @@ pub enum FillError {
     /// Something in braces that isn't a fill-in, or a brace left open.
     #[error("the draft has a fill-in that isn't on the list, or a brace left open")]
     NotAFillIn,
+    /// The date has passed, and the draft gives it in words that can't be
+    /// changed to "as soon as you can" safely.
+    #[error("the date to book by has passed; use the template, or give the date after \"by\"")]
+    Overdue,
     /// The clinic's data has no value for a fill-in.
     #[error("there is nothing to fill {{{0}}} with")]
     Empty(&'static str),
@@ -139,6 +146,9 @@ pub enum FillError {
 /// value is never itself filled. A draft with anything else in braces, or a
 /// fill-in with no value, is refused: never sent half-filled.
 pub fn fill(draft: &str, values: &FillIns) -> Result<String, FillError> {
+    if values.due_by < values.today {
+        return fill_overdue(draft, values);
+    }
     let due_by = values
         .due_by
         .format(format_description!("[month repr:long] [day padding:none], [year]"))
@@ -170,4 +180,42 @@ pub fn fill(draft: &str, values: &FillIns) -> Result<String, FillError> {
     }
     filled.push_str(rest);
     Ok(filled)
+}
+
+/// Words that may come before `{due_by}`; with them it reads "as soon as you
+/// can" once the date has passed. Longest first, matched whole and in any case.
+const BEFORE_DUE_BY: [&str; 5] = ["prior to", "preceding", "before", "until", "by"];
+
+/// [`fill`] for a date that has passed: "by {due_by}" (or "before", "prior
+/// to", "preceding", "until") becomes "as soon as you can"; any other
+/// `{due_by}` is refused rather than giving a date gone by.
+fn fill_overdue(draft: &str, values: &FillIns) -> Result<String, FillError> {
+    let mut reworded = String::with_capacity(draft.len());
+    let mut rest = draft;
+    while let Some(at) = rest.find("{due_by}") {
+        let head = rest[..at].trim_end();
+        let lower = head.to_lowercase();
+        let word = BEFORE_DUE_BY
+            .iter()
+            .find(|word| {
+                lower.ends_with(*word)
+                    && lower[..lower.len() - word.len()]
+                        .chars()
+                        .next_back()
+                        .is_none_or(|c| !c.is_alphanumeric())
+            })
+            .ok_or(FillError::Overdue)?;
+        // Lowercasing keeps ASCII lengths, and these words are ASCII.
+        let kept = head[..head.len() - word.len()].trim_end_matches([' ', ',']);
+        reworded.push_str(kept);
+        reworded.push_str(" as soon as you can");
+        rest = &rest[at + "{due_by}".len()..];
+    }
+    reworded.push_str(rest);
+    // No date is left to fill; any other fill-in is filled as usual.
+    let values = FillIns {
+        today: values.due_by,
+        ..values.clone()
+    };
+    fill(&reworded, &values)
 }

@@ -499,6 +499,7 @@ async fn reminder(
         clinic_name: account.name,
         clinic_phone: settings.phone,
         due_by: row.due_by,
+        today: crate::sending_hours::local_day(state.clock.now(), &settings.time_zone).map_err(ApiError::internal)?,
         opt_out_link: "(the link to stop these reminders)".to_owned(),
     };
     let (preview, preview_problem) = match fill(&row.text, &values) {

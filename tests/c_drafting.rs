@@ -90,6 +90,7 @@ fn c6_fill_ins_come_only_from_the_clinics_data_exactly_as_stored() {
         clinic_name: "Example Family Practice".into(),
         clinic_phone: "(555) 010-0100".into(),
         due_by: date!(2026 - 12 - 09),
+        today: date!(2026 - 11 - 11),
         opt_out_link: "https://reminders.example.test/o/abc".into(),
     };
 
@@ -110,6 +111,7 @@ fn c6_a_draft_with_an_unknown_fill_in_is_never_filled() {
         clinic_name: "Example Family Practice".into(),
         clinic_phone: "(555) 010-0100".into(),
         due_by: date!(2026 - 12 - 09),
+        today: date!(2026 - 11 - 11),
         opt_out_link: "https://reminders.example.test/o/abc".into(),
     };
 
@@ -133,6 +135,7 @@ fn values() -> FillIns {
         clinic_name: "Example Family Practice".into(),
         clinic_phone: "(555) 010-0100".into(),
         due_by: date!(2026 - 12 - 09),
+        today: date!(2026 - 11 - 11),
         opt_out_link: "https://reminders.example.test/o/abc".into(),
     }
 }
@@ -157,4 +160,54 @@ fn c6_an_empty_value_is_never_filled_in() {
     };
 
     assert!(fill(&template(1), &no_phone).is_err());
+}
+
+#[test]
+fn c6_a_date_already_past_is_never_given_the_patient_is_asked_to_book_soon() {
+    let overdue = FillIns {
+        due_by: date!(2026 - 10 - 12),
+        ..values()
+    };
+
+    let filled = fill(&template(1), &overdue).unwrap();
+    let before = fill(
+        "Hi {first_name}, call {clinic_phone} before {due_by}. {opt_out_link}",
+        &overdue,
+    )
+    .unwrap();
+    let prior = fill(
+        "Hi {first_name}, call {clinic_phone} prior to {due_by}. {opt_out_link}",
+        &overdue,
+    )
+    .unwrap();
+
+    assert!(filled.contains("works for you as soon as you can."), "{filled}");
+    assert!(!filled.contains("October"), "{filled}");
+    assert!(before.contains("call (555) 010-0100 as soon as you can."), "{before}");
+    assert!(prior.contains("as soon as you can."), "{prior}");
+}
+
+#[test]
+fn c6_a_past_date_in_wording_that_cant_be_changed_safely_is_refused() {
+    let overdue = FillIns {
+        due_by: date!(2026 - 10 - 12),
+        ..values()
+    };
+
+    let odd = fill(
+        "Hi {first_name}. The date is {due_by}. Call {clinic_phone}. {opt_out_link}",
+        &overdue,
+    );
+
+    assert_eq!(odd, Err(care_reminders::drafting::FillError::Overdue));
+}
+
+#[test]
+fn c6_the_due_date_itself_is_still_given_on_the_day() {
+    let today = FillIns {
+        due_by: date!(2026 - 11 - 11),
+        ..values()
+    };
+
+    assert!(fill(&template(1), &today).unwrap().contains("by November 11, 2026"));
 }
