@@ -180,14 +180,21 @@ async fn work_with<M: care_reminders::engine::llm::LanguageModel>(
     let servers = FhirServers::new(pool.clone(), clock.clone());
     let drafter = care_reminders::reminders::Drafter::new(pool, clock, model);
     loop {
-        for (clinic, result) in servers.fetch_due().await? {
-            if let Err(err) = result {
-                eprintln!("care-reminders: the hourly fetch for {clinic} failed: {err}");
+        match servers.fetch_due().await {
+            Ok(done) => {
+                for (clinic, result) in done {
+                    if let Err(err) = result {
+                        eprintln!("care-reminders: the hourly fetch for {clinic} failed: {err}");
+                    }
+                }
             }
+            Err(err) => eprintln!("care-reminders: the hourly fetch failed: {err}"),
         }
-        let drafted = drafter.draft_due().await?;
-        if drafted > 0 {
-            println!("drafted {drafted} reminder(s)");
+        // A failed pass is reported and tried again; it never stops the worker.
+        match drafter.draft_due().await {
+            Ok(0) => {}
+            Ok(drafted) => println!("drafted {drafted} reminder(s)"),
+            Err(err) => eprintln!("care-reminders: drafting failed: {err}"),
         }
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     }

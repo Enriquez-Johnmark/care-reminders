@@ -135,7 +135,7 @@ impl<M: LanguageModel> Drafter<M> {
                    where r.tenant_id = f.tenant_id and r.follow_up_id = f.id
                    order by number desc limit 1
                ) last on true
-               where f.stopped_at is null
+               where f.stopped_at is null and coalesce(last.number, 0) < 3
                order by f.selected_at, f.id"#
         )
         .fetch_all(&self.pool)
@@ -147,7 +147,16 @@ impl<M: LanguageModel> Drafter<M> {
             let Some(days) = usize::try_from(number - 1).ok().and_then(|i| PLANNED_DAYS.get(i)) else {
                 continue;
             };
-            let planned_on = follow_up.selected_at.date() + Duration::days(*days);
+            // Planned from when the follow-up was chosen, but never sooner than
+            // the same gap after the reminder before was finished, so a late
+            // reminder doesn't bring the next one forward.
+            let mut planned_on = follow_up.selected_at.date() + Duration::days(*days);
+            if let (Some(finished), Some(before)) = (
+                follow_up.last_finished,
+                usize::try_from(number - 2).ok().and_then(|i| PLANNED_DAYS.get(i)),
+            ) {
+                planned_on = planned_on.max(finished.date() + Duration::days(days - before));
+            }
             if !previous_finished || planned_on > today {
                 continue;
             }
@@ -158,9 +167,17 @@ impl<M: LanguageModel> Drafter<M> {
             } else {
                 Tone::Warm
             };
-            let draft = self.write(clinic, kind, number as u8, tone).await?;
-            self.store(clinic, follow_up.id, number, planned_on, &draft).await?;
-            drafted += 1;
+            // One follow-up's failure doesn't stop the others; it is tried
+            // again on the next pass.
+            let result = match self.write(clinic, kind, number as u8, tone).await {
+                Ok(draft) => self.store(clinic, follow_up.id, number, planned_on, &draft).await,
+                Err(err) => Err(err),
+            };
+            match result {
+                Ok(true) => drafted += 1,
+                Ok(false) => {}
+                Err(err) => eprintln!("care-reminders: drafting a reminder for {} failed: {err}", follow_up.id),
+            }
         }
         Ok(drafted)
     }
@@ -209,6 +226,22 @@ impl<M: LanguageModel> Drafter<M> {
         cost_log::record(&self.pool, &call).await?;
         let answered_by = reply.as_ref().map(|reply| reply.model.clone()).ok();
         Ok(match parsed {
+            // No answer at all: the clinic's template stands in, saying so.
+            Err(_) if reply.is_err() => {
+                let text = template(number);
+                let mut checked = check(&text);
+                let reason = reply.as_ref().err().map(ToString::to_string).unwrap_or_default();
+                checked.warnings.insert(
+                    0,
+                    format!("The model didn't answer ({reason}), so this is the clinic's template."),
+                );
+                NewDraft {
+                    source: "template",
+                    model: None,
+                    text,
+                    checked,
+                }
+            }
             Ok(text) => {
                 let checked = check(&text);
                 NewDraft {
@@ -218,8 +251,8 @@ impl<M: LanguageModel> Drafter<M> {
                     checked,
                 }
             }
-            // An answer that can't be read, or none, blocks the draft (C1);
-            // the coordinator can use the template or ask again.
+            // An answer that can't be read blocks the draft (C1); the
+            // coordinator can use the template or ask again.
             Err(reason) => NewDraft {
                 source: "model",
                 model: answered_by.or_else(|| Some(model.model().to_owned())),
@@ -243,7 +276,7 @@ impl<M: LanguageModel> Drafter<M> {
         number: i16,
         planned_on: time::Date,
         draft: &NewDraft,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<bool, sqlx::Error> {
         let now = self.clock.now();
         let (reminder, draft_id) = (ReminderId::new(), DraftId::new());
         let encode = |err: serde_json::Error| sqlx::Error::Encode(err.into());
@@ -262,7 +295,7 @@ impl<M: LanguageModel> Drafter<M> {
         .await?;
         if added.rows_affected() == 0 {
             // Another worker drafted it first.
-            return Ok(());
+            return Ok(false);
         }
         sqlx::query!(
             "insert into drafts (id, tenant_id, reminder_id, attempt, source, model, text, problems, warnings, grade,
@@ -295,6 +328,7 @@ impl<M: LanguageModel> Drafter<M> {
             }),
         };
         audit::record(&mut *tx, &event).await?;
-        tx.commit().await
+        tx.commit().await?;
+        Ok(true)
     }
 }

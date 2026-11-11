@@ -8,16 +8,18 @@
 mod common;
 
 use care_reminders::checks::Check;
+use care_reminders::engine::clock::Clock;
 use care_reminders::reminders::{Drafter, Reminders};
 use common::{Fake, GOOD_DRAFT, clock, practice};
 use sqlx::PgPool;
 use time::Duration;
 
-/// Marks every reminder `number` as finished (skipped), as the coordinator
-/// or sending will.
-async fn finish(pool: &PgPool, number: i16) {
-    sqlx::query("update reminders set finished_at = now(), outcome = 'skipped' where number = $1")
+/// Marks every reminder `number` as finished (skipped) at `at`, as the
+/// coordinator or sending will.
+async fn finish(pool: &PgPool, number: i16, at: time::OffsetDateTime) {
+    sqlx::query("update reminders set finished_at = $2, outcome = 'skipped' where number = $1")
         .bind(number)
+        .bind(at)
         .execute(pool)
         .await
         .unwrap();
@@ -47,21 +49,24 @@ async fn e6_reminders_two_and_three_wait_for_day_seven_and_twenty_one_and_for_th
 
     clock.advance(Duration::days(7));
     let while_first_open = drafter.draft_due().await.unwrap();
-    finish(&pool, 1).await;
+    // Reminder 1 went out on day 0.
+    finish(&pool, 1, clock.now() - Duration::days(7)).await;
     clock.advance(Duration::days(-1));
     let day_six = drafter.draft_due().await.unwrap();
     clock.advance(Duration::days(1));
     let day_seven = drafter.draft_due().await.unwrap();
-    finish(&pool, 2).await;
-    clock.advance(Duration::days(14));
+    finish(&pool, 2, clock.now()).await;
+    clock.advance(Duration::days(13));
+    let day_twenty = drafter.draft_due().await.unwrap();
+    clock.advance(Duration::days(1));
     let day_twenty_one = drafter.draft_due().await.unwrap();
-    finish(&pool, 3).await;
+    finish(&pool, 3, clock.now()).await;
     clock.advance(Duration::days(60));
     let after = drafter.draft_due().await.unwrap();
 
     assert_eq!(
-        (while_first_open, day_six, day_seven, day_twenty_one, after),
-        (0, 0, 40, 40, 0)
+        (while_first_open, day_six, day_seven, day_twenty, day_twenty_one, after),
+        (0, 0, 40, 0, 40, 0)
     );
 }
 
@@ -71,7 +76,7 @@ async fn e6_nothing_more_is_drafted_once_the_follow_up_has_stopped(pool: PgPool)
     practice(&pool, clock.clone()).await;
     let drafter = Drafter::new(pool.clone(), clock.clone(), Some(Fake(Some(GOOD_DRAFT))));
     drafter.draft_due().await.unwrap();
-    finish(&pool, 1).await;
+    finish(&pool, 1, clock.now()).await;
     sqlx::query("update follow_ups set stopped_at = now(), stop = 'replied'")
         .execute(&pool)
         .await
@@ -104,10 +109,10 @@ async fn c7_a_blocked_draft_is_stored_with_each_check_that_failed(pool: PgPool) 
 }
 
 #[sqlx::test(migrator = "care_reminders::MIGRATOR")]
-async fn c1_an_answer_that_cant_be_read_or_no_answer_blocks_the_draft_and_is_logged_with_its_cost(pool: PgPool) {
+async fn c1_an_answer_that_cant_be_read_blocks_the_draft_and_is_logged_with_its_cost(pool: PgPool) {
     let clock = clock();
     let family = practice(&pool, clock.clone()).await;
-    Drafter::new(pool.clone(), clock.clone(), Some(Fake(None)))
+    Drafter::new(pool.clone(), clock.clone(), Some(Fake(Some(""))))
         .draft_due()
         .await
         .unwrap();
@@ -118,6 +123,33 @@ async fn c1_an_answer_that_cant_be_read_or_no_answer_blocks_the_draft_and_is_log
         drafts
             .iter()
             .all(|d| d.blocked() && d.problems[0].check == Check::Answer),
+        "{:?}",
+        drafts[0]
+    );
+    assert_eq!(
+        count(&pool, "select count(*) from llm_calls where outcome = 'invalid'").await,
+        40
+    );
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn c1_when_the_model_doesnt_answer_the_clinics_template_stands_in_with_a_warning(pool: PgPool) {
+    let clock = clock();
+    let family = practice(&pool, clock.clone()).await;
+    Drafter::new(pool.clone(), clock.clone(), Some(Fake(None)))
+        .draft_due()
+        .await
+        .unwrap();
+
+    let drafts = Reminders::new(pool.clone()).latest_drafts(family).await.unwrap();
+
+    assert!(
+        drafts.iter().all(|d| !d.blocked() && d.source == "template"),
+        "{:?}",
+        drafts[0]
+    );
+    assert!(
+        drafts[0].warnings.iter().any(|w| w.contains("didn't answer")),
         "{:?}",
         drafts[0]
     );
@@ -143,4 +175,25 @@ async fn c1_with_no_model_the_clinics_template_is_drafted_and_passes(pool: PgPoo
         "{:?}",
         drafts[0]
     );
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e6_a_reminder_finished_late_keeps_the_gap_before_the_next(pool: PgPool) {
+    let clock = clock();
+    practice(&pool, clock.clone()).await;
+    let drafter = Drafter::new(pool.clone(), clock.clone(), Some(Fake(Some(GOOD_DRAFT))));
+    drafter.draft_due().await.unwrap();
+    clock.advance(Duration::days(25));
+    sqlx::query("update reminders set finished_at = $1, outcome = 'skipped'")
+        .bind(clock.now())
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    clock.advance(Duration::days(6));
+    let six_days_on = drafter.draft_due().await.unwrap();
+    clock.advance(Duration::days(1));
+    let seven_days_on = drafter.draft_due().await.unwrap();
+
+    assert_eq!((six_days_on, seven_days_on), (0, 40));
 }
