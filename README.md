@@ -2,7 +2,7 @@
 
 Finds a clinic's patients who are due for follow-up care and reminds them, with a person at the clinic approving every reminder: Claude drafts, code checks, the approved text is sent once, reminders stop when the patient replies, books or opts out, and every step is audited.
 
-**Status:** building. M1–M4 (data and fetching; rules and follow-ups; drafts and checks; logins, review and the activity log) are done, with their 31 acceptance criteria proven ([the evidence page](docs/evidence/m4.html)); M5 (sending and stops) is next. See [`AGENTS.md`](AGENTS.md) for the phases and [`docs/architecture.md`](docs/architecture.md) for the build order.
+**Status:** building. M1–M5 (data and fetching; rules and follow-ups; drafts and checks; logins, review and the activity log; sending and stops) are done, with their 41 acceptance criteria proven ([the evidence page](docs/evidence/m5.html)); M6 (measuring Claude's drafts) is next. See [`AGENTS.md`](AGENTS.md) for the phases and [`docs/architecture.md`](docs/architecture.md) for the build order.
 
 ## What works so far
 
@@ -19,7 +19,9 @@ Finds a clinic's patients who are due for follow-up care and reminds them, with 
 
   All 40 hand-written bad drafts in [`evalset/bad-drafts.json`](evalset/bad-drafts.json) are blocked, each by the check it was written to trip (`i1_*`).
 - **The care coordinator's review:** staff log in with an emailed link; there are no passwords, and every API needs a login (`h1_*`). The queue lists each reminder waiting, drafts that passed every check first. The review page shows why the patient is due and which rule version chose them, the reminder as the patient will read it beside the clinic's template, and what the checks found. Only the coordinator can approve (`d1_*`). A blocked draft can't be approved (`d2_*`). An approval binds the exact text, and any later change needs approving again; a reminder that can't be filled, or whose follow-up has stopped, can't be approved (`d3_*`). The coordinator's own edits go through the same checks (`d4_*`). The coordinator can use the template or ask for up to two new drafts (`d5_*`), or skip a reminder with a reason (`d6_*`).
-- **The activity log:** every step so far is logged with who and when, in an append-only log the database refuses to change (`g1_*`, `g2_*`). Each follow-up has its timeline, and the administrator sees the whole clinic's log, filtered by person and step (`g3_*`). Sending and replies join the log in M5.
+- **The activity log:** every step so far is logged with who and when, in an append-only log the database refuses to change (`g1_*`, `g2_*`). Each follow-up has its timeline, and the administrator sees the whole clinic's log, filtered by person and step (`g3_*`). Sending, replies and opt-outs are in it too.
+- **Sending:** approving a reminder puts its email into the engine's outbox in the same step, and nothing reaches the outbox without an approval (`e1_*`). It goes exactly once, even if the sender dies between sending and recording, shown by killing the real program at that point (`e2_*`). No patient gets more than one reminder a day or three in any seven days; the extra ones wait (`e3_*`). Reminders go out only 8 am to 6 pm on weekdays, in the clinic's time zone, daylight saving included (`e4_*`). A patient who asked not to be emailed is never emailed, and shows as "contact another way" (`e5_*`). The exact email is checked again just before it goes and refused if it names any care, even through a filled-in name (`e7_*`). The coordinator sees whether each email waits, went, or wasn't sent and why.
+- **Stops:** a booking found at the next fetch stops the follow-up and withdraws an approved email that hasn't gone (`f1_*`). A reply, arriving on a signed webhook, stops its follow-up and appears on the Replies page; an automatic reply or a changed reply code stops nothing (`f2_*`). The opt-out link opens a page with one button: opening it changes nothing, and pressing it stops only that kind of reminder (`f3_*`). A changed link is refused (`f4_*`). In the demo, `simulate-reply` stands in for real inbound mail.
 - **Each clinic sees only its own patients, follow-ups, reminders and activity** (`a4_*`).
 - **The evidence pack** links each of the 43 acceptance criteria to the tests that prove it (`j1_*`).
 
@@ -32,13 +34,19 @@ cargo run -- migrate
 cargo run -- clinic add --name "Example Family Practice" --email admin@family.example.test
 cargo run -- clinic add-coordinator --clinic <the printed ID> --email carla@family.example.test --name "Carla Reyes"
 cargo run -- clinic set-phone --clinic <the ID> --phone "(555) 010-0100"
+cargo run -- clinic set-time-zone --clinic <the ID> --zone America/New_York   # the default
 cargo run -- load-made-up --url http://127.0.0.1:8090/fhir    # only a server on this computer is accepted
 cargo run -- clinic set-fhir-server --clinic <the ID> --url http://127.0.0.1:8090/fhir
 pnpm --dir web install && pnpm --dir web build
 WEB_DIR=web/dist cargo run -- serve   # http://127.0.0.1:3000; login emails arrive in Mailpit at http://localhost:8025
 ```
 
-Log in as the administrator and press "Fetch from the FHIR server": the rules choose 40 follow-ups and the worker drafts their first reminders (with the clinic's template, unless `OWNER_ANTHROPIC_API_KEY` is set). Then log in as the coordinator to review them. `cargo nextest run` runs the tests; `pnpm --dir web e2e` runs the browser tests against a running server.
+Log in as the administrator and press "Fetch from the FHIR server": the rules choose 40 follow-ups and the worker drafts their first reminders (with the clinic's template, unless `OWNER_ANTHROPIC_API_KEY` is set). Then log in as the coordinator to review and approve them. Approved reminders go out in the clinic's sending hours and arrive in Mailpit; open one's link to try the opt-out page. To try a reply:
+
+```bash
+cargo run -- simulate-reply --clinic <the ID> --patient p01 --text "Thanks, I'll call on Monday."
+```
+ `cargo nextest run` runs the tests; `pnpm --dir web e2e` runs the browser tests against a running server.
 
 Made-up clinic, made-up patients: this repository contains no real patient data and names no real company.
 
