@@ -178,3 +178,18 @@ pub fn master() -> care_reminders::engine::files::MasterKey {
 pub fn sending() -> care_reminders::sending::Sending {
     care_reminders::sending::Sending::new(&master(), BASE_URL, "replies.example.test")
 }
+
+/// Fetches a server-rendered page, from our origin: its status and HTML.
+pub async fn fetch(app: &axum::Router, method: &str, path: &str) -> (u16, String) {
+    use tower::ServiceExt;
+    let request = axum::http::Request::builder()
+        .method(method)
+        .uri(path)
+        .header("origin", BASE_URL)
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status().as_u16();
+    let bytes = axum::body::to_bytes(response.into_body(), 1 << 20).await.unwrap();
+    (status, String::from_utf8(bytes.to_vec()).unwrap())
+}

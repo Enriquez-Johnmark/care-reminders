@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into opt_outs (tenant_id, patient_id, kind, opted_out_at) values ($1, $2, $3, $4)\n         on conflict do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b3599a7cbb1b0f8ecb756a2c451165ddfb395fd9ba68935b95b48db08f31bae"
+}

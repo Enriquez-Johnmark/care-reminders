@@ -62,3 +62,89 @@ async fn f1_a_booking_found_at_the_next_fetch_withdraws_an_approved_unsent_remin
         1
     );
 }
+
+/// Ana's two follow-ups' IDs: her result follow-up, then her screening.
+async fn anas_follow_ups(pool: &PgPool) -> (uuid::Uuid, uuid::Uuid) {
+    let id = |kind: &'static str| {
+        sqlx::query_scalar::<_, uuid::Uuid>(
+            "select f.id from follow_ups f join patients p on p.id = f.patient_id
+             where p.fhir_id = 'p01' and f.kind = $1",
+        )
+        .bind(kind)
+        .fetch_one(pool)
+    };
+    (id("after-result").await.unwrap(), id("screening-recall").await.unwrap())
+}
+
+async fn stop_of(pool: &PgPool, follow_up: uuid::Uuid) -> Option<String> {
+    sqlx::query_scalar("select stop from follow_ups where id = $1")
+        .bind(follow_up)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f3_opening_the_opt_out_link_alone_changes_nothing(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, _) = anas_follow_ups(&s.pool).await;
+    let link = common::sending().opt_out_link(result.into());
+    let app = common::app(&s.pool, s.clock.clone());
+
+    let page = common::fetch(&app, "GET", link.trim_start_matches(common::BASE_URL)).await;
+
+    assert_eq!(page.0, 200);
+    assert!(
+        page.1.contains("<button") && page.1.contains("Example Family Practice"),
+        "{}",
+        page.1
+    );
+    assert_eq!(stop_of(&s.pool, result).await, None);
+    assert_eq!(s.count("select count(*) from opt_outs").await, 0);
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f3_pressing_the_button_opts_out_of_that_kind_of_reminder_only(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, screening) = anas_follow_ups(&s.pool).await;
+    let link = common::sending().opt_out_link(result.into());
+    let app = common::app(&s.pool, s.clock.clone());
+
+    let done = common::fetch(&app, "POST", link.trim_start_matches(common::BASE_URL)).await;
+    FollowUps::new(s.pool.clone(), s.clock.clone())
+        .refresh(s.coordinator.tenant, "operator")
+        .await
+        .unwrap();
+
+    assert_eq!(done.0, 200);
+    assert!(done.1.contains("stopped"), "{}", done.1);
+    assert_eq!(stop_of(&s.pool, result).await.as_deref(), Some("opted-out"));
+    assert_eq!(stop_of(&s.pool, screening).await, None, "her screening reminders go on");
+    assert_eq!(
+        s.count("select count(*) from audit_events where action = 'follow_up.opted_out' and actor = 'patient'")
+            .await,
+        1
+    );
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f4_a_changed_link_or_another_links_code_is_refused(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, _) = anas_follow_ups(&s.pool).await;
+    let link = common::sending().opt_out_link(result.into());
+    let token = link.rsplit('/').next().unwrap().to_owned();
+    let mut changed = token.clone().into_bytes();
+    changed[3] = if changed[3] == b'0' { b'1' } else { b'0' };
+    let changed = String::from_utf8(changed).unwrap();
+    // A reply code is signed for another purpose; it isn't an opt-out link.
+    let reply = common::sending().reply_to(result.into());
+    let reply_code = reply.trim_start_matches("reply+").split('@').next().unwrap().to_owned();
+    let app = common::app(&s.pool, s.clock.clone());
+
+    for bad in [changed, reply_code, "nothing".to_owned()] {
+        let answer = common::fetch(&app, "POST", &format!("/o/{bad}")).await;
+        assert_eq!(answer.0, 404, "{bad}");
+    }
+    assert_eq!(stop_of(&s.pool, result).await, None);
+    assert_eq!(s.count("select count(*) from opt_outs").await, 0);
+}

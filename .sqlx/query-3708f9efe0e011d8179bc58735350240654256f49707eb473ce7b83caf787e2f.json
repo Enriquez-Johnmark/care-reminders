@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select exists (select 1 from opt_outs where tenant_id = $1 and patient_id = $2 and kind = $3) as \"done!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "done!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3708f9efe0e011d8179bc58735350240654256f49707eb473ce7b83caf787e2f"
+}

@@ -9,6 +9,7 @@
 //!   cross-site posts.
 
 mod api;
+mod opt_out;
 mod spa;
 
 use std::sync::Arc;
@@ -39,6 +40,8 @@ pub struct AppState {
     clock: Arc<dyn Clock>,
     logins: Logins,
     reviews: Reviews,
+    /// Signs and reads the reminders' links.
+    sending: crate::sending::Sending,
     /// The model a coordinator's "new draft" asks; the template without one.
     model: Option<Arc<AnyModel>>,
     /// Where links in emails point, e.g. `http://127.0.0.1:3000`.
@@ -63,7 +66,8 @@ impl AppState {
         };
         Self {
             logins: Logins::new(pool.clone(), clock.clone()),
-            reviews: Reviews::new(pool.clone(), clock.clone()).with_sending(sending),
+            reviews: Reviews::new(pool.clone(), clock.clone()).with_sending(sending.clone()),
+            sending,
             model: None,
             secure_cookies: base_url.starts_with("https://"),
             wake_sender: Arc::new(Notify::new()),
@@ -102,6 +106,7 @@ impl AppState {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .merge(api::routes())
+        .merge(opt_out::routes())
         .route("/health", get(health))
         .fallback(spa::app)
         .layer(middleware::from_fn_with_state(state.clone(), same_origin_posts))

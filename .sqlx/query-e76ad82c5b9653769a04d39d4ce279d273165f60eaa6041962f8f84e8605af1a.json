@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select kind from opt_outs where tenant_id = $1 and patient_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "opt_outs",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e76ad82c5b9653769a04d39d4ce279d273165f60eaa6041962f8f84e8605af1a"
+}

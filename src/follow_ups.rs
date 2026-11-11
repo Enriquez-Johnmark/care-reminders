@@ -164,9 +164,17 @@ impl FollowUps {
             )
             .fetch_all(&mut *tx)
             .await?;
+            // Opted out in the patient's record, or from a reminder's link (F3).
+            let linked_out = sqlx::query_scalar!(
+                "select kind from opt_outs where tenant_id = $1 and patient_id = $2",
+                clinic.as_uuid(),
+                patient.id
+            )
+            .fetch_all(&mut *tx)
+            .await?;
             for follow_up in open {
                 let kind = Kind::from_code(&follow_up.kind).unwrap_or(Kind::AfterResult);
-                let stop = if record.patient.opted_out.contains(&kind) {
+                let stop = if record.patient.opted_out.contains(&kind) || linked_out.contains(&follow_up.kind) {
                     Stop::OptedOut
                 } else if booked(&record, booking_type(kind), follow_up.since) {
                     Stop::Booked

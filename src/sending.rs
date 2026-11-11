@@ -323,3 +323,106 @@ pub async fn withdraw_stopped(
     }
     Ok(waiting.len())
 }
+
+/// What an opt-out link names, as its page shows it: only the clinic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OptOutLink {
+    /// The clinic the reminders come from.
+    pub clinic_name: String,
+    /// Whether the patient already opted out of this kind.
+    pub done: bool,
+}
+
+/// The follow-up an opt-out link names, found from its signed code before any
+/// clinic is known (the one lookup not scoped by a clinic), with its clinic,
+/// patient and kind.
+async fn linked(
+    pool: &PgPool,
+    sending: &Sending,
+    token: &str,
+) -> Result<Option<(TenantId, uuid::Uuid, String, String)>, sqlx::Error> {
+    let Some(follow_up) = sending.opt_out_of(token) else {
+        return Ok(None);
+    };
+    let row = sqlx::query!(
+        "select f.tenant_id, f.patient_id, f.kind, a.name as clinic_name
+         from follow_ups f join accounts a on a.tenant_id = f.tenant_id
+         where f.id = $1",
+        follow_up.as_uuid(),
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|row| (row.tenant_id.into(), row.patient_id, row.kind, row.clinic_name)))
+}
+
+/// The opt-out link's page, if `token` is a real link (F4). Reading it
+/// changes nothing (F3).
+pub async fn opt_out_link(pool: &PgPool, sending: &Sending, token: &str) -> Result<Option<OptOutLink>, sqlx::Error> {
+    let Some((clinic, patient, kind, clinic_name)) = linked(pool, sending, token).await? else {
+        return Ok(None);
+    };
+    let done = sqlx::query_scalar!(
+        "select exists (select 1 from opt_outs where tenant_id = $1 and patient_id = $2 and kind = $3) as \"done!\"",
+        clinic.as_uuid(),
+        patient,
+        kind,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(Some(OptOutLink { clinic_name, done }))
+}
+
+/// Opts the patient a link names out of that kind of reminder only (F3):
+/// its open follow-ups of that kind stop, logged, and their unsent emails
+/// are withdrawn. `None` if `token` isn't a real link (F4).
+pub async fn opt_out(
+    pool: &PgPool,
+    clock: Arc<dyn Clock>,
+    sending: &Sending,
+    token: &str,
+) -> Result<Option<OptOutLink>, OutboxError> {
+    let Some((clinic, patient, kind, clinic_name)) = linked(pool, sending, token).await? else {
+        return Ok(None);
+    };
+    let now = clock.now();
+    let mut tx = pool.begin().await?;
+    sqlx::query!(
+        "insert into opt_outs (tenant_id, patient_id, kind, opted_out_at) values ($1, $2, $3, $4)
+         on conflict do nothing",
+        clinic.as_uuid(),
+        patient,
+        kind,
+        now,
+    )
+    .execute(&mut *tx)
+    .await?;
+    let stopped = sqlx::query_scalar!(
+        "update follow_ups set stopped_at = $4, stop = 'opted-out'
+         where tenant_id = $1 and patient_id = $2 and kind = $3 and stopped_at is null
+         returning id",
+        clinic.as_uuid(),
+        patient,
+        kind,
+        now,
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    for id in stopped {
+        let event = AuditEvent {
+            tenant: clinic,
+            at: now,
+            actor: "patient",
+            action: "follow_up.opted_out",
+            subject_type: "follow_up",
+            subject_id: id,
+            details: json!({ "from": "the opt-out link" }),
+        };
+        audit::record(&mut *tx, &event).await?;
+    }
+    tx.commit().await?;
+    withdraw_stopped(pool, clock, clinic, "patient").await?;
+    Ok(Some(OptOutLink {
+        clinic_name,
+        done: true,
+    }))
+}

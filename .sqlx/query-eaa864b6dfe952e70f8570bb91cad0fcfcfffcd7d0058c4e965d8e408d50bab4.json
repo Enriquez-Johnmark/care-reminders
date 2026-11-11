@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update follow_ups set stopped_at = $4, stop = 'opted-out'\n         where tenant_id = $1 and patient_id = $2 and kind = $3 and stopped_at is null\n         returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eaa864b6dfe952e70f8570bb91cad0fcfcfffcd7d0058c4e965d8e408d50bab4"
+}

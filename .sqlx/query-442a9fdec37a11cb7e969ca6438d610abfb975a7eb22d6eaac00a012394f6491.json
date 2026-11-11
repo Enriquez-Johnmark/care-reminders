@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select f.tenant_id, f.patient_id, f.kind, a.name as clinic_name\n         from follow_ups f join accounts a on a.tenant_id = f.tenant_id\n         where f.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tenant_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "tenant_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "patient_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "patient_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "clinic_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "accounts",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "442a9fdec37a11cb7e969ca6438d610abfb975a7eb22d6eaac00a012394f6491"
+}
