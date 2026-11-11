@@ -1,6 +1,6 @@
 # Spec: Care Reminders
 
-Decided round by round with the owner; the single source for spec decisions. The brief is `brief.md`. Status: **in progress** (Round 1 decided 2026-11-11).
+Decided round by round with the owner; the single source for spec decisions. The brief is `brief.md`. Status: **in progress** (Rounds 1–2 decided 2026-11-11; the acceptance criteria are Round 3).
 
 ## Words
 
@@ -71,3 +71,57 @@ Above **6th grade**, the coordinator sees a warning.
 - At most **1 reminder a day and 3 a week** per patient, enforced in code.
 - Only between **8 am and 6 pm on weekdays**, clinic time; a reminder that misses the window waits for the next one.
 - A patient who asked **not to be emailed** is never emailed. They show in the queue as "contact another way", with the reason.
+
+## People and logins (Round 2, 2026-11-11)
+
+- Logging in is by an **emailed link**; there are no passwords.
+- Only the **care coordinator** can approve; the administrator's approval is refused.
+
+## The coordinator's queue (Round 2, 2026-11-11)
+
+- One page lists the follow-ups that need a reminder: drafts that passed every check first, then blocked ones.
+- Each row shows the patient, the kind, the reason, the due-by date and which reminder it is (1 to 3).
+
+## The review page (Round 2, 2026-11-11)
+
+- The reason, and the rule (and its version) that selected the patient.
+- Claude's draft with the fill-ins filled in, beside the clinic's fixed template, with the reading level.
+- The coordinator can **approve**, **edit**, **use the template**, **ask for a new draft** (at most twice) or **skip** the reminder with a reason.
+
+## Edits (Round 2, 2026-11-11)
+
+- A coordinator's edit goes through the **same checks** as Claude's drafts. A clinical word or a digit in an edit **blocks** it: a coordinator mustn't add clinical content.
+
+## Fetching (Round 2, 2026-11-11)
+
+- The administrator presses **"Fetch from the FHIR server"**, and a background job also fetches **every hour**.
+- Each fetch finds new follow-ups by the rules, stops follow-ups whose patient has since booked, and is logged.
+
+## Drafting (Round 2, 2026-11-11)
+
+- A background job drafts each new or next reminder.
+- A reminder becomes due on its planned day (0, 7 or 21) only if nothing has stopped the follow-up.
+
+## The activity log (Round 2, 2026-11-11)
+
+- Every step is in an **append-only** log that the database refuses to change.
+- Each follow-up has its own **timeline**; the administrator sees the whole clinic's log, filtered by person and step.
+- Steps logged: fetch, selected, drafted, checked, edited, approved, skipped, sent, replied, booked and opted out.
+
+## How the checks are measured (Round 2, 2026-11-11)
+
+| Set | What it holds | Target |
+|---|---|---|
+| Bad drafts | 40 hand-written drafts, each with one planted fault: a digit, a date, a stray fill-in, a clinical word, advice, or too hard to read | every one blocked |
+| Claude's drafts | Claude's draft of every reminder in the demo, recorded | at least 90% pass; every failure listed in the README |
+| Comparison | Sonnet beside Haiku, and both beside the template | pass rate and cost reported |
+
+## The evidence pack (Round 2, 2026-11-11)
+
+- A page, built on every push, linking each acceptance criterion to the tests that prove it. CI fails if a finished milestone's criterion has none passing.
+
+## Tooling (Round 2, 2026-11-11)
+
+- **Rust** (axum, sqlx) on **Nudgewright** at a pinned release; **Postgres 17**.
+- **React**, TypeScript and shadcn, in the Lab Report Assistant's clinical look.
+- **HAPI FHIR** v8.4.0-1 in Docker, locally and in CI; **Mailpit**; **Playwright**; **nextest**; **GitHub Actions**.
