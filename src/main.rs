@@ -43,8 +43,13 @@ async fn run() -> anyhow::Result<()> {
         }
         Some("clinic") if args.get(1).map(String::as_str) == Some("add") => {
             let (name, email) = (option(&args, "--name")?, option(&args, "--email")?);
-            let accounts = Accounts::new(connect().await?, Arc::new(SystemClock));
+            let pool = connect().await?;
+            let accounts = Accounts::new(pool.clone(), Arc::new(SystemClock));
             let clinic = accounts.create(name, email).await.context("adding the clinic")?;
+            care_reminders::rules::Rules::new(pool, Arc::new(SystemClock))
+                .install_defaults(clinic, "operator")
+                .await
+                .context("giving the clinic its default rules")?;
             println!("{clinic}");
             Ok(())
         }

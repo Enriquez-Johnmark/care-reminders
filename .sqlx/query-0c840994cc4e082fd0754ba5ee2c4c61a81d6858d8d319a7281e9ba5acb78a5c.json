@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update rules set version = $3 where tenant_id = $1 and id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0c840994cc4e082fd0754ba5ee2c4c61a81d6858d8d319a7281e9ba5acb78a5c"
+}

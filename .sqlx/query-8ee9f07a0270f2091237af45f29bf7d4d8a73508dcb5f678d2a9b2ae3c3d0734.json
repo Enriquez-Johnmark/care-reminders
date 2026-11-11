@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into rules (id, tenant_id, kind, name, version) values ($1, $2, $3, $4, 1)\n                 on conflict (tenant_id, name) do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8ee9f07a0270f2091237af45f29bf7d4d8a73508dcb5f678d2a9b2ae3c3d0734"
+}

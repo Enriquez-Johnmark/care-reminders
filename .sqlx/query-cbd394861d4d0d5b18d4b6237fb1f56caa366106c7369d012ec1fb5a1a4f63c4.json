@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select settings from rule_versions where tenant_id = $1 and rule_id = $2 and version = $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "settings",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "rule_versions",
+            "name": "settings"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cbd394861d4d0d5b18d4b6237fb1f56caa366106c7369d012ec1fb5a1a4f63c4"
+}

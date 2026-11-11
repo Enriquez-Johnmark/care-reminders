@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use time::{Date, Duration};
 
 use crate::fhir::{AppointmentStatus, Kind, PatientRecord, Sex};
+use crate::records::ClinicId;
 
 /// A rule's settings: one of the fixed rule types.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,4 +210,185 @@ fn age_on(birth: Date, day: Date) -> i32 {
 fn months_between(from: Date, to: Date) -> i32 {
     let months = (to.year() - from.year()) * 12 + (to.month() as i32 - from.month() as i32);
     if to.day() < from.day() { months - 1 } else { months }
+}
+
+/// A stored rule, at its current version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rule {
+    /// Its ID.
+    pub id: RuleId,
+    /// What staff call it.
+    pub name: String,
+    /// Its current version, from 1.
+    pub version: i32,
+    /// Its current settings.
+    pub settings: RuleSettings,
+}
+
+crate::engine::id_type!(
+    /// One of a clinic's rules.
+    RuleId
+);
+
+/// Why a rule wasn't changed.
+#[derive(Debug, thiserror::Error)]
+pub enum RuleError {
+    /// No such rule in this clinic.
+    #[error("no such rule")]
+    NotFound,
+    /// The new settings are of another rule type.
+    #[error("a rule keeps its type")]
+    OtherType,
+    /// The database failed.
+    #[error(transparent)]
+    Database(#[from] sqlx::Error),
+}
+
+/// Each clinic's rules and their versions.
+#[derive(Clone)]
+pub struct Rules {
+    pool: sqlx::PgPool,
+    clock: std::sync::Arc<dyn crate::engine::clock::Clock>,
+}
+
+impl Rules {
+    /// The rules in `pool`.
+    pub fn new(pool: sqlx::PgPool, clock: std::sync::Arc<dyn crate::engine::clock::Clock>) -> Self {
+        Self { pool, clock }
+    }
+
+    /// Gives `clinic` the default rules it doesn't have yet, at version 1.
+    pub async fn install_defaults(&self, clinic: ClinicId, actor: &str) -> Result<(), sqlx::Error> {
+        let now = self.clock.now();
+        let mut tx = self.pool.begin().await?;
+        for (kind, name, settings) in default_rules() {
+            let id = RuleId::new();
+            let added = sqlx::query!(
+                "insert into rules (id, tenant_id, kind, name, version) values ($1, $2, $3, $4, 1)
+                 on conflict (tenant_id, name) do nothing",
+                id.as_uuid(),
+                clinic.as_uuid(),
+                kind.code(),
+                name,
+            )
+            .execute(&mut *tx)
+            .await?;
+            if added.rows_affected() == 1 {
+                add_version(&mut tx, clinic, id, 1, &settings, now, actor).await?;
+            }
+        }
+        tx.commit().await
+    }
+
+    /// `clinic`'s rules at their current versions, by name.
+    pub async fn current(&self, clinic: ClinicId) -> Result<Vec<Rule>, sqlx::Error> {
+        let rows = sqlx::query!(
+            "select r.id, r.name, r.version, v.settings
+             from rules r join rule_versions v on v.tenant_id = r.tenant_id and v.rule_id = r.id and v.version = r.version
+             where r.tenant_id = $1 order by r.name",
+            clinic.as_uuid()
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(Rule {
+                    id: row.id.into(),
+                    name: row.name,
+                    version: row.version,
+                    settings: serde_json::from_value(row.settings).map_err(|err| sqlx::Error::Decode(err.into()))?,
+                })
+            })
+            .collect()
+    }
+
+    /// The settings of version `version` of `clinic`'s rule `rule`.
+    pub async fn version(
+        &self,
+        clinic: ClinicId,
+        rule: RuleId,
+        version: i32,
+    ) -> Result<Option<RuleSettings>, sqlx::Error> {
+        let settings = sqlx::query_scalar!(
+            "select settings from rule_versions where tenant_id = $1 and rule_id = $2 and version = $3",
+            clinic.as_uuid(),
+            rule.as_uuid(),
+            version
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        settings
+            .map(|json| serde_json::from_value(json).map_err(|err| sqlx::Error::Decode(err.into())))
+            .transpose()
+    }
+
+    /// Changes `clinic`'s rule `rule` to `settings`, of the same type, as a
+    /// new version; returns its number. Logged as done by `actor`.
+    pub async fn change(
+        &self,
+        clinic: ClinicId,
+        rule: RuleId,
+        settings: &RuleSettings,
+        actor: &str,
+    ) -> Result<i32, RuleError> {
+        let now = self.clock.now();
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query!(
+            "select kind, version from rules where tenant_id = $1 and id = $2 for update",
+            clinic.as_uuid(),
+            rule.as_uuid()
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(RuleError::NotFound)?;
+        if row.kind != settings.kind().code() {
+            return Err(RuleError::OtherType);
+        }
+        let version = row.version + 1;
+        sqlx::query!(
+            "update rules set version = $3 where tenant_id = $1 and id = $2",
+            clinic.as_uuid(),
+            rule.as_uuid(),
+            version
+        )
+        .execute(&mut *tx)
+        .await?;
+        add_version(&mut tx, clinic, rule, version, settings, now, actor).await?;
+        tx.commit().await?;
+        Ok(version)
+    }
+}
+
+async fn add_version(
+    tx: &mut sqlx::PgConnection,
+    clinic: ClinicId,
+    rule: RuleId,
+    version: i32,
+    settings: &RuleSettings,
+    now: time::OffsetDateTime,
+    actor: &str,
+) -> Result<(), sqlx::Error> {
+    let json = serde_json::to_value(settings).map_err(|err| sqlx::Error::Encode(err.into()))?;
+    sqlx::query!(
+        "insert into rule_versions (tenant_id, rule_id, version, settings, created_at, created_by)
+         values ($1, $2, $3, $4, $5, $6)",
+        clinic.as_uuid(),
+        rule.as_uuid(),
+        version,
+        json.clone(),
+        now,
+        actor,
+    )
+    .execute(&mut *tx)
+    .await?;
+    let event = crate::engine::audit::AuditEvent {
+        tenant: clinic,
+        at: now,
+        actor,
+        action: if version == 1 { "rule.added" } else { "rule.changed" },
+        subject_type: "rule",
+        subject_id: rule.as_uuid(),
+        details: serde_json::json!({ "version": version, "settings": json }),
+    };
+    crate::engine::audit::record(&mut *tx, &event).await
 }
