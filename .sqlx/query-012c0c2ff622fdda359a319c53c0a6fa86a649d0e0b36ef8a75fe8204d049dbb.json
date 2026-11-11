@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select record from patients where tenant_id = $1 and id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "record",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "record"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "012c0c2ff622fdda359a319c53c0a6fa86a649d0e0b36ef8a75fe8204d049dbb"
+}

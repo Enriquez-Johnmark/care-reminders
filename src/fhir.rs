@@ -15,7 +15,7 @@ pub const NO_EMAIL: &str = "http://example.test/fhir/StructureDefinition/no-emai
 pub const OPT_OUT: &str = "http://example.test/fhir/StructureDefinition/reminder-opt-out";
 
 /// A patient's record: who they are and the care the rules look at.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PatientRecord {
     /// The patient.
     pub patient: Patient,
@@ -30,7 +30,7 @@ pub struct PatientRecord {
 }
 
 /// A patient.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Patient {
     /// Their FHIR id.
     pub fhir_id: String,
@@ -51,7 +51,7 @@ pub struct Patient {
 }
 
 /// A patient's recorded sex, which screening rules may use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Sex {
     /// Female.
     Female,
@@ -92,7 +92,7 @@ impl Kind {
 }
 
 /// One lab result.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LabResult {
     /// The Observation's FHIR id.
     pub fhir_id: String,
@@ -107,7 +107,7 @@ pub struct LabResult {
 }
 
 /// One hospital stay.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HospitalStay {
     /// The Encounter's FHIR id.
     pub fhir_id: String,
@@ -116,7 +116,7 @@ pub struct HospitalStay {
 }
 
 /// One screening done.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Screening {
     /// The Procedure's FHIR id.
     pub fhir_id: String,
@@ -127,7 +127,7 @@ pub struct Screening {
 }
 
 /// One appointment.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Appointment {
     /// Its FHIR id.
     pub fhir_id: String,
@@ -140,7 +140,7 @@ pub struct Appointment {
 }
 
 /// Where an appointment stands.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AppointmentStatus {
     /// Booked, or about to happen.
     Booked,

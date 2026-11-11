@@ -8,6 +8,7 @@ pub mod evidence;
 pub mod fhir;
 pub mod html;
 pub mod made_up;
+pub mod records;
 
 /// The engine, Nudgewright, pinned to a release.
 pub use nudgewright as engine;
