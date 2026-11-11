@@ -22,6 +22,9 @@ async fn reviewed(pool: &PgPool) -> (Session, Vec<care_reminders::reminders::Lat
         .draft_due()
         .await
         .unwrap();
+    care_reminders::settings::set_phone(pool, family, "(555) 010-0100")
+        .await
+        .unwrap();
     let reviews = Reviews::new(pool.clone(), clock);
     let member = reviews
         .add_coordinator(family, "carla@family.test", "Carla Reyes", "admin@family.test")

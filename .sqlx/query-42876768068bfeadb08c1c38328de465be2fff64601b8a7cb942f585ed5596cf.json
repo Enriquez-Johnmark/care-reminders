@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select f.kind, r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,\n                    jsonb_array_length(d.problems) > 0 as \"blocked!\"\n             from reminders r\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1 and r.id = $2\n             order by d.attempt desc limit 1\n             for update of r",
+  "query": "select f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,\n                    r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,\n                    jsonb_array_length(d.problems) > 0 as \"blocked!\"\n             from reminders r\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1 and r.id = $2\n             order by d.attempt desc limit 1\n             for update of r",
   "describe": {
     "columns": [
       {
@@ -16,6 +16,34 @@
       },
       {
         "ordinal": 1,
+        "name": "stopped!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "due_by",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "due_by"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "given_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "given_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "number",
         "type_info": "Int2",
         "origin": {
@@ -26,13 +54,13 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 5,
         "name": "finished!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 3,
+        "ordinal": 6,
         "name": "draft",
         "type_info": "Uuid",
         "origin": {
@@ -43,7 +71,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 7,
         "name": "attempt",
         "type_info": "Int4",
         "origin": {
@@ -54,7 +82,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 8,
         "name": "text",
         "type_info": "Text",
         "origin": {
@@ -65,7 +93,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 9,
         "name": "blocked!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -79,6 +107,9 @@
     },
     "nullable": [
       false,
+      null,
+      false,
+      false,
       false,
       null,
       false,
@@ -87,5 +118,5 @@
       null
     ]
   },
-  "hash": "39206a518788aca1b9c6179dde286dc81d9c51ccfe54ffb6438fd46c01dffb36"
+  "hash": "42876768068bfeadb08c1c38328de465be2fff64601b8a7cb942f585ed5596cf"
 }

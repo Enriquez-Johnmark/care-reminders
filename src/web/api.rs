@@ -132,6 +132,11 @@ impl From<ReviewError> for ApiError {
             ReviewError::NoReason => {
                 Self::Refused(StatusCode::UNPROCESSABLE_ENTITY, "Say why you're skipping it.".into())
             }
+            ReviewError::Stopped => conflict("This follow-up has stopped: the patient booked, replied or opted out."),
+            ReviewError::NoModel => {
+                conflict("No model is set up for new drafts. Edit the reminder or use the template.")
+            }
+            ReviewError::CantFill(reason) => conflict(&format!("This reminder can't be sent as it stands: {reason}.")),
             other => Self::internal(other),
         }
     }
@@ -518,7 +523,12 @@ async fn reminder(
         preview_problem,
         template: template(row.number as u8),
         approved_at: approval.map(|a| time_text(a.approved_at)),
-        new_drafts_left: (MAX_NEW_DRAFTS - row.new_drafts).max(0),
+        // Without a model there are no new drafts to ask for.
+        new_drafts_left: if state.model.is_some() {
+            (MAX_NEW_DRAFTS - row.new_drafts).max(0)
+        } else {
+            0
+        },
         contact_another_way: row.no_email,
         finished: row.outcome,
     }))

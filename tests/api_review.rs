@@ -79,7 +79,8 @@ async fn d1_the_queue_lists_each_reminder_waiting_and_the_review_page_shows_the_
     );
     assert!(!preview.contains('{'), "{preview}");
     assert_eq!(detail["draft"]["problems"], json!([]));
-    assert_eq!(detail["new_drafts_left"], 2);
+    // This app has no model, so there are no new drafts to ask for.
+    assert_eq!(detail["new_drafts_left"], 0);
 }
 
 #[sqlx::test(migrator = "care_reminders::MIGRATOR")]

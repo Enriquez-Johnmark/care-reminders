@@ -41,6 +41,19 @@ pub enum ReviewError {
     /// The model has written its last draft (D5).
     #[error("no more new drafts for this reminder; edit it or use the template")]
     NoMoreDrafts,
+    /// The follow-up stopped: the patient booked, replied or opted out.
+    #[error("this follow-up has stopped, so its reminders can't be changed or approved")]
+    Stopped,
+    /// The text can't be filled from the clinic's data, so it could never be
+    /// sent (D3): e.g. the clinic's phone isn't set.
+    #[error("this reminder can't be sent as it stands: {0}")]
+    CantFill(String),
+    /// No model is set up to ask for a new draft (D5).
+    #[error("no model is set up for new drafts; edit the reminder or use the template")]
+    NoModel,
+    /// A coordinator's name must be 1 to 100 characters.
+    #[error("a coordinator needs a name of 1 to 100 characters")]
+    BadName,
     /// A skip needs a reason (D6).
     #[error("say why the reminder is skipped")]
     NoReason,
@@ -87,6 +100,9 @@ pub fn content_hash(text: &str) -> String {
 /// What a review step needs to know about a reminder.
 struct Current {
     follow_up_kind: String,
+    stopped: bool,
+    given_name: String,
+    due_by: time::Date,
     number: i16,
     finished: bool,
     draft: uuid::Uuid,
@@ -117,6 +133,10 @@ impl Reviews {
         name: &str,
         by: &str,
     ) -> Result<MemberId, ReviewError> {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 100 {
+            return Err(ReviewError::BadName);
+        }
         let member = Members::new(self.pool.clone(), self.clock.clone())
             .add_staff(clinic, email, by)
             .await?;
@@ -158,10 +178,12 @@ impl Reviews {
         reminder: ReminderId,
     ) -> Result<Current, ReviewError> {
         let row = sqlx::query!(
-            "select f.kind, r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,
+            "select f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,
+                    r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,
                     jsonb_array_length(d.problems) > 0 as \"blocked!\"
              from reminders r
              join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id
+             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id
              join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id
              where r.tenant_id = $1 and r.id = $2
              order by d.attempt desc limit 1
@@ -172,15 +194,22 @@ impl Reviews {
         .fetch_optional(&mut *tx)
         .await?
         .ok_or(ReviewError::NotFound)?;
-        Ok(Current {
+        let current = Current {
             follow_up_kind: row.kind,
+            stopped: row.stopped,
+            given_name: row.given_name,
+            due_by: row.due_by,
             number: row.number,
             finished: row.finished,
             draft: row.draft,
             attempt: row.attempt,
             text: row.text,
             blocked: row.blocked,
-        })
+        };
+        if current.stopped {
+            return Err(ReviewError::Stopped);
+        }
+        Ok(current)
     }
 
     /// Approves `draft` of `reminder`, if it is the latest, passed its checks
@@ -204,6 +233,20 @@ impl Reviews {
         if current.blocked {
             return Err(ReviewError::Blocked);
         }
+        // Approving only what could be sent: every fill-in has a value.
+        let account = crate::engine::accounts::Accounts::new(self.pool.clone(), self.clock.clone())
+            .get(who.tenant)
+            .await
+            .map_err(|err| ReviewError::CantFill(err.to_string()))?;
+        let settings = crate::settings::get(&self.pool, who.tenant).await?;
+        let values = crate::drafting::FillIns {
+            first_name: current.given_name.clone(),
+            clinic_name: account.name,
+            clinic_phone: settings.phone,
+            due_by: current.due_by,
+            opt_out_link: "the opt-out link".to_owned(),
+        };
+        crate::drafting::fill(&current.text, &values).map_err(|err| ReviewError::CantFill(err.to_string()))?;
         let now = self.clock.now();
         sqlx::query!(
             "insert into approvals (draft_id, tenant_id, reminder_id, content_hash, approved_by, approved_at)
@@ -296,6 +339,9 @@ impl Reviews {
         model: Option<&M>,
     ) -> Result<Edited, ReviewError> {
         self.require_coordinator(who).await?;
+        let Some(model) = model else {
+            return Err(ReviewError::NoModel);
+        };
         let (kind, number) = {
             let mut tx = self.pool.begin().await?;
             let current = self.current(&mut tx, who, reminder).await?;
@@ -330,7 +376,7 @@ impl Reviews {
         let draft = write_draft(
             &self.pool,
             self.clock.as_ref(),
-            model,
+            Some(model),
             who.tenant,
             kind,
             number as u8,

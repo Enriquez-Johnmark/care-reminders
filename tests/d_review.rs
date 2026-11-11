@@ -31,6 +31,9 @@ async fn setup(pool: PgPool, model: &'static str) -> Setup {
         .draft_due()
         .await
         .unwrap();
+    care_reminders::settings::set_phone(&pool, family, "(555) 010-0100")
+        .await
+        .unwrap();
     let reviews = Reviews::new(pool.clone(), clock);
     let member = reviews
         .add_coordinator(family, "carla@family.test", "Carla Reyes", "admin@family.test")
@@ -267,4 +270,68 @@ async fn a4_a_coordinator_cant_review_another_clinics_reminder(pool: PgPool) {
 
     assert!(matches!(approved, Err(ReviewError::NotFound)), "{approved:?}");
     assert!(matches!(skipped, Err(ReviewError::NotFound)), "{skipped:?}");
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn d3_a_reminder_that_cant_be_filled_cant_be_approved(pool: PgPool) {
+    let s = setup(pool, GOOD_DRAFT).await;
+    let draft = s.first().await;
+    // This clinic hasn't set its phone, so {clinic_phone} can't be filled.
+    sqlx::query("delete from clinic_settings")
+        .execute(&s.pool)
+        .await
+        .unwrap();
+
+    let approved = s
+        .reviews
+        .approve(&s.coordinator, draft.reminder, draft.draft, &content_hash(&draft.text))
+        .await;
+
+    assert!(matches!(approved, Err(ReviewError::CantFill(_))), "{approved:?}");
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn d6_a_stopped_follow_ups_reminder_cant_be_approved_or_changed(pool: PgPool) {
+    let s = setup(pool, GOOD_DRAFT).await;
+    let draft = s.first().await;
+    sqlx::query("update follow_ups set stopped_at = now(), stop = 'booked'")
+        .execute(&s.pool)
+        .await
+        .unwrap();
+
+    let approved = s
+        .reviews
+        .approve(&s.coordinator, draft.reminder, draft.draft, &content_hash(&draft.text))
+        .await;
+    let edited = s.reviews.edit(&s.coordinator, draft.reminder, GOOD_DRAFT).await;
+
+    assert!(matches!(approved, Err(ReviewError::Stopped)), "{approved:?}");
+    assert!(matches!(edited, Err(ReviewError::Stopped)), "{edited:?}");
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn d5_with_no_model_a_new_draft_is_refused_rather_than_another_template(pool: PgPool) {
+    let s = setup(pool, BLOCKED).await;
+    let draft = s.first().await;
+
+    let asked = s.reviews.new_draft::<Fake>(&s.coordinator, draft.reminder, None).await;
+
+    assert!(matches!(asked, Err(ReviewError::NoModel)), "{asked:?}");
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn d1_a_coordinator_needs_a_name_and_a_bad_one_adds_no_one(pool: PgPool) {
+    let s = setup(pool, GOOD_DRAFT).await;
+
+    let added = s
+        .reviews
+        .add_coordinator(s.coordinator.tenant, "dan@family.test", "  ", "admin@family.test")
+        .await;
+
+    assert!(matches!(added, Err(ReviewError::BadName)), "{added:?}");
+    let members: i64 = sqlx::query_scalar("select count(*) from account_members where email = 'dan@family.test'")
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    assert_eq!(members, 0);
 }
