@@ -202,6 +202,13 @@ impl FollowUps {
             }
         }
         tx.commit().await?;
+        // F1: what was approved but hasn't gone is withdrawn.
+        crate::sending::withdraw_stopped(&self.pool, self.clock.clone(), clinic, actor)
+            .await
+            .map_err(|err| match err {
+                crate::engine::outbox::OutboxError::Db(err) => err,
+                other => sqlx::Error::Protocol(other.to_string()),
+            })?;
         Ok(done)
     }
 

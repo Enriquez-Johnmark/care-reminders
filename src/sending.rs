@@ -286,3 +286,40 @@ pub async fn finish(pool: &PgPool, clock: Arc<dyn Clock>) -> Result<usize, Outbo
     tx.commit().await?;
     Ok(sent.len())
 }
+
+/// Withdraws every email of `clinic`'s stopped follow-ups that hasn't started
+/// to go (F1): a booking, reply or opt-out means no more reminders. Each is
+/// logged, as done by `actor`; returns how many.
+pub async fn withdraw_stopped(
+    pool: &PgPool,
+    clock: Arc<dyn Clock>,
+    clinic: TenantId,
+    actor: &str,
+) -> Result<usize, OutboxError> {
+    let waiting = sqlx::query!(
+        "select m.message_id, m.reminder_id, f.stop as \"stop!\"
+         from reminder_messages m
+         join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id
+         join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id
+         join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id
+         where m.tenant_id = $1 and f.stopped_at is not null and o.status in ('draft', 'approved')",
+        clinic.as_uuid(),
+    )
+    .fetch_all(pool)
+    .await?;
+    let outbox = Outbox::new(pool.clone(), clock.clone());
+    for row in &waiting {
+        outbox.cancel(clinic, row.message_id.into(), actor).await?;
+        let event = AuditEvent {
+            tenant: clinic,
+            at: clock.now(),
+            actor,
+            action: "reminder.withdrawn",
+            subject_type: "reminder",
+            subject_id: row.reminder_id,
+            details: json!({ "message": row.message_id, "stop": row.stop }),
+        };
+        audit::record(pool, &event).await?;
+    }
+    Ok(waiting.len())
+}

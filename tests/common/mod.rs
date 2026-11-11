@@ -4,6 +4,8 @@
 #![allow(clippy::unwrap_used, reason = "test code: a failed unwrap is a failed test")]
 #![allow(dead_code, reason = "each test file uses part of this")]
 
+pub mod outbox;
+
 use std::sync::Arc;
 
 use care_reminders::demo_data::{self, DEMO_DAY};
