@@ -12,8 +12,8 @@ Each gate needs the owner's explicit "yes"; an approval for one phase never carr
 | --- | --- |
 | 1. Research | done (2026-11-11, `docs/research/README.md`) |
 | 2. Brief | done, approved 2026-11-11 (`docs/product/brief.md`) |
-| 3. Spec & acceptance criteria | **in progress**: Rounds 1–2 decided 2026-11-11 (`docs/product/spec.md`) |
-| 4. Architecture | not started |
+| 3. Spec & acceptance criteria | done, approved 2026-11-11 (`docs/product/spec.md`, 42 criteria) |
+| 4. Architecture | **next** |
 | 5. Build | not started |
 
 **No application code exists or gets written until the build is approved.** Research, docs and throwaway prototypes that answer a specific question are in scope; prototypes live in `prototypes/<question>/` and are deleted once their answer is recorded.
