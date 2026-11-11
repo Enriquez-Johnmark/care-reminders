@@ -10,6 +10,7 @@ pub mod fhir_server;
 pub mod html;
 pub mod made_up;
 pub mod records;
+pub mod rules;
 
 /// The engine, Nudgewright, pinned to a release.
 pub use nudgewright as engine;
