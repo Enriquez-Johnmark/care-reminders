@@ -12,6 +12,7 @@ pub mod fhir_server;
 pub mod follow_ups;
 pub mod html;
 pub mod made_up;
+pub mod model;
 pub mod records;
 pub mod rules;
 

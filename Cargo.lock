@@ -177,11 +177,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvy",
+ "hex",
  "nudgewright",
  "quick-xml",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "sqlx",
  "tempfile",
  "thiserror",
