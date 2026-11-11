@@ -12,7 +12,6 @@ Checked in Nudgewright v0.4.5 before this was written:
 | `inbound` | Parsing replies and recognising automatic replies (F2) |
 | `signed` | The opt-out link and the reply code (F3, F4) |
 | `accounts` | Login by emailed link, sessions, the administrator and the care coordinator (H1) |
-| `jobs` | Drafting (E6) |
 | `llm`, `cost_log` | Calling Claude and logging each call's cost (I3) |
 | `audit` | The append-only log: a database trigger refuses updates and deletes (G1, G2) |
 | `clock`, `ids`, `tenants` | Time only through the injected `Clock`; typed IDs; every query scoped to a `TenantId` (A4) |
@@ -39,6 +38,7 @@ Checked in Nudgewright v0.4.5 before this was written:
   - system-wide workers (the outbox sender and job workers), which still name the row's tenant in every update;
   - login, before any clinic is known;
   - the opt-out page and the reply webhook, which find the follow-up from a signed code.
+- **Drafting** is a sweep in the same worker: each minute it drafts every reminder that is due, one at a time. A failure is logged and retried on the next pass, and never stops the worker. With one clinic's few dozen reminders a day this is enough; many clinics, or a slow model, would move drafting to the engine's job queue, run in parallel.
 - **The hourly fetch** is a sweep in the worker (`work`): each minute it fetches for every clinic not fetched from in the last hour, so a missed hour catches up. It assumes one worker; a second would need a lock on the clinic's row.
 - **FHIR fetching stays in this product.** Nudgewright's rule is that the engine holds nothing domain-specific, so the Lab Report Assistant's fetch code is copied and adapted here rather than moved into the engine.
 
