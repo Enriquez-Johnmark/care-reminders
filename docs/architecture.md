@@ -90,6 +90,6 @@ Before every commit: `cargo fmt --check`, `cargo clippy --all-targets --all-feat
 | M4 | Logins, review and the activity log, with the staff pages | D1–D6, G1–G3, H1 | done (2026-11-11) |
 | M5 | Sending and stops: the outbox, caps, sending hours, no-email patients, the opt-out page, replies, bookings | E1–E5, E7, F1–F4 | done (2026-11-11) |
 | M6 | Measurement: Claude's recorded drafts, Sonnet against Haiku against the template | I2, I3 | done (2026-11-11) |
-| M7 | Showcase: README, screenshots, walkthrough video, portfolio page | none | planned |
+| M7 | Showcase: README, screenshots, walkthrough video, portfolio page | none | done (2026-11-11) |
 
 Each milestone ends with a code review and an evidence page.

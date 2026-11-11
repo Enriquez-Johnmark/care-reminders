@@ -2,7 +2,7 @@
 
 Finds a clinic's patients who are due for follow-up care and reminds them, with a person at the clinic approving every reminder: Claude drafts, code checks, the approved text is sent once, reminders stop when the patient replies, books or opts out, and every step is audited.
 
-**Status:** building. M1–M6 (data and fetching; rules and follow-ups; drafts and checks; logins, review and the activity log; sending and stops; measurement) are done, with all 43 acceptance criteria proven ([the evidence page](docs/evidence/m6.html)); M7 (the showcase) is next. See [`AGENTS.md`](AGENTS.md) for the phases and [`docs/architecture.md`](docs/architecture.md) for the build order.
+**Status:** built. M1–M7 (data and fetching; rules and follow-ups; drafts and checks; logins, review and the activity log; sending and stops; measurement; the showcase) are done, with all 43 acceptance criteria proven ([the evidence page](docs/evidence/m6.html)). See [`AGENTS.md`](AGENTS.md) for the phases and [`docs/architecture.md`](docs/architecture.md) for the build order.
 
 ## See it
 
