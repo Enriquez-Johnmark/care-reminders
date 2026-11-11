@@ -3,6 +3,7 @@
 //! checks it, a person approves the exact text, the engine sends it once,
 //! and every step is audited.
 
+pub mod checks;
 pub mod demo_data;
 pub mod evidence;
 pub mod fhir;
