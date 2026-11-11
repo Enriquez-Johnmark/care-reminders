@@ -126,32 +126,48 @@ pub struct FillIns {
 
 /// Why a draft couldn't be filled.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-#[error("the draft has a fill-in that isn't on the list, or a brace left open")]
-pub struct FillError;
+pub enum FillError {
+    /// Something in braces that isn't a fill-in, or a brace left open.
+    #[error("the draft has a fill-in that isn't on the list, or a brace left open")]
+    NotAFillIn,
+    /// The clinic's data has no value for a fill-in.
+    #[error("there is nothing to fill {{{0}}} with")]
+    Empty(&'static str),
+}
 
-/// `draft` with each fill-in replaced by its value (C6). A draft with
-/// anything else in braces is refused, never sent half-filled.
+/// `draft` with each fill-in replaced by its value (C6), in one pass, so a
+/// value is never itself filled. A draft with anything else in braces, or a
+/// fill-in with no value, is refused: never sent half-filled.
 pub fn fill(draft: &str, values: &FillIns) -> Result<String, FillError> {
     let due_by = values
         .due_by
         .format(format_description!("[month repr:long] [day padding:none], [year]"))
-        .map_err(|_| FillError)?;
-    let mut filled = draft.to_owned();
-    for name in FILL_INS {
-        let value = match name {
+        .map_err(|_| FillError::Empty("due_by"))?;
+    let mut filled = String::with_capacity(draft.len() + 100);
+    let mut rest = draft;
+    while let Some(open) = rest.find(['{', '}']) {
+        filled.push_str(&rest[..open]);
+        let close = rest[open..]
+            .find('}')
+            .filter(|_| rest[open..].starts_with('{'))
+            .ok_or(FillError::NotAFillIn)?;
+        let name = FILL_INS
+            .iter()
+            .find(|name| **name == &rest[open + 1..open + close])
+            .ok_or(FillError::NotAFillIn)?;
+        let value = match *name {
             "first_name" => values.first_name.as_str(),
             "clinic_name" => values.clinic_name.as_str(),
             "clinic_phone" => values.clinic_phone.as_str(),
             "due_by" => due_by.as_str(),
             _ => values.opt_out_link.as_str(),
         };
-        filled = filled.replace(&format!("{{{name}}}"), value);
+        if value.trim().is_empty() {
+            return Err(FillError::Empty(name));
+        }
+        filled.push_str(value);
+        rest = &rest[open + close + 1..];
     }
-    // The values come from the clinic's data, so a brace left now is one the
-    // draft had of its own.
-    let leftover = FILL_INS
-        .iter()
-        .fold(draft.to_owned(), |text, name| text.replace(&format!("{{{name}}}"), ""))
-        .contains(['{', '}']);
-    if leftover { Err(FillError) } else { Ok(filled) }
+    filled.push_str(rest);
+    Ok(filled)
 }

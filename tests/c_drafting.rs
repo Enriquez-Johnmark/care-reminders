@@ -126,3 +126,35 @@ fn c5_the_clinics_templates_pass_every_check() {
         );
     }
 }
+
+fn values() -> FillIns {
+    FillIns {
+        first_name: "Ana".into(),
+        clinic_name: "Example Family Practice".into(),
+        clinic_phone: "(555) 010-0100".into(),
+        due_by: date!(2026 - 12 - 09),
+        opt_out_link: "https://reminders.example.test/o/abc".into(),
+    }
+}
+
+#[test]
+fn c6_a_value_that_looks_like_a_fill_in_is_kept_exactly_as_stored() {
+    let odd = FillIns {
+        first_name: "{clinic_phone}".into(),
+        ..values()
+    };
+
+    let filled = fill(&template(1), &odd).unwrap();
+
+    assert!(filled.starts_with("Hello {clinic_phone}, this is"), "{filled}");
+}
+
+#[test]
+fn c6_an_empty_value_is_never_filled_in() {
+    let no_phone = FillIns {
+        clinic_phone: String::new(),
+        ..values()
+    };
+
+    assert!(fill(&template(1), &no_phone).is_err());
+}
