@@ -335,14 +335,20 @@ impl Reviews {
             tx.commit().await?;
             return Ok(());
         };
-        let already = sqlx::query_scalar!(
-            "select message_id from reminder_messages where tenant_id = $1 and draft_id = $2",
+        // Approving twice makes one email; once that email was refused or
+        // expired, approving again makes a new one. One whose sending is
+        // unknown stays as it is: a person checks with the patient first.
+        let live = sqlx::query_scalar!(
+            "select exists (select 1 from reminder_messages m
+                            join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id
+                            where m.tenant_id = $1 and m.draft_id = $2
+                              and o.status not in ('cancelled', 'blocked', 'expired')) as \"live!\"",
             who.tenant.as_uuid(),
             draft.as_uuid(),
         )
-        .fetch_optional(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
-        if already.is_some() {
+        if live {
             return Ok(());
         }
         // ADR 0001: the email is stored with the approval, and released to

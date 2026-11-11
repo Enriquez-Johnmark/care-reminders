@@ -300,7 +300,8 @@ function Actions({ reminder, onEdit }: { reminder: ReminderView; onEdit: () => v
     <div className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-3">
       {error ? <SaveError error={error} /> : null}
       <div className="flex flex-wrap gap-2">
-        {draft.problems.length === 0 && !reminder.approved_at ? (
+        {draft.problems.length === 0 &&
+        (!reminder.approved_at || reminder.delivery?.status === "not_sent") ? (
           <Button
             onClick={() => approve.mutate({ draft_id: draft.id, content_hash: draft.content_hash })}
             disabled={busy}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select exists (select 1 from reminder_messages m\n                            join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id\n                            where m.tenant_id = $1 and m.draft_id = $2\n                              and o.status not in ('cancelled', 'blocked', 'expired')) as \"live!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "live!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b72e2f48e634d77d9d370094e8e086130326047775b9844556aff3c992d70cf2"
+}

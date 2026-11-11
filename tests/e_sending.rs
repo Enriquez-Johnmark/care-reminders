@@ -259,3 +259,32 @@ async fn e1_an_email_refused_when_released_is_logged_with_its_reason_not_as_with
         1
     );
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e1_the_same_text_can_be_approved_again_once_its_email_was_refused(pool: PgPool) {
+    let s = setup(pool).await;
+    let (draft, patient) = s.drafts().await.remove(0);
+    s.approve(&draft).await;
+    let old: String = sqlx::query_scalar("select email from patients where fhir_id = $1")
+        .bind(&patient)
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    set_email(&s.pool, &patient, "moved@example.test").await;
+    assert_eq!(s.send().await, 0, "refused: the address changed");
+    set_email(&s.pool, &patient, &old).await;
+
+    s.approve(&draft).await;
+
+    assert_eq!(s.send().await, 1);
+    assert_eq!(s.count("select count(*) from reminder_messages").await, 2);
+}
+
+async fn set_email(pool: &PgPool, patient: &str, address: &str) {
+    sqlx::query("update patients set email = $1 where fhir_id = $2")
+        .bind(address)
+        .bind(patient)
+        .execute(pool)
+        .await
+        .unwrap();
+}
