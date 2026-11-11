@@ -380,6 +380,7 @@ impl FhirServers {
             unchanged: 0,
             refused: Vec::new(),
         };
+        let seen: Vec<String> = patients.keys().cloned().collect();
         for (patient, resources) in patients {
             let resources: Vec<&Value> = resources.iter().collect();
             match PatientRecord::from_resources(&resources) {
@@ -388,12 +389,21 @@ impl FhirServers {
                     Saved::Updated => outcome.updated += 1,
                     Saved::Unchanged => outcome.unchanged += 1,
                 },
-                Err(err) => outcome.refused.push(Refused {
-                    patient,
-                    reason: err.to_string(),
-                }),
+                Err(err) => {
+                    // A known patient keeps their last record, marked as
+                    // possibly out of date, rather than a broken new one.
+                    let reason = format!("the reader refused their record at the last fetch: {err}");
+                    records.mark_not_current(clinic, &patient, &reason).await?;
+                    outcome.refused.push(Refused {
+                        patient,
+                        reason: err.to_string(),
+                    });
+                }
             }
         }
+        records
+            .mark_unseen(clinic, &seen, "not on the FHIR server at the last fetch")
+            .await?;
         Ok(outcome)
     }
 

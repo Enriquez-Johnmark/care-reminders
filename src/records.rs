@@ -27,6 +27,8 @@ pub struct PatientSummary {
     pub fhir_id: String,
     /// Their name.
     pub name: String,
+    /// Why their stored record may be out of date; `None` while current.
+    pub not_current: Option<String>,
 }
 
 /// What saving a record did.
@@ -67,19 +69,18 @@ impl Records {
         )
         .fetch_optional(&mut *tx)
         .await?;
-        let saved = match before {
-            None => Saved::New,
-            Some(before) if before == json => Saved::Unchanged,
-            Some(_) => Saved::Updated,
-        };
-        sqlx::query!(
+        // Whether this insert made the row decides "new", so two fetches at
+        // once can't both count the same patient as new.
+        let inserted = sqlx::query_scalar!(
             "insert into patients (id, tenant_id, fhir_id, name, given_name, email, no_email, record, fetched_at, updated_at)
              values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
              on conflict (tenant_id, fhir_id) do update set
                  name = excluded.name, given_name = excluded.given_name, email = excluded.email,
                  no_email = excluded.no_email, record = excluded.record, fetched_at = excluded.fetched_at,
+                 not_current = null,
                  updated_at = case when patients.record = excluded.record then patients.updated_at
-                                   else excluded.updated_at end",
+                                   else excluded.updated_at end
+             returning (xmax = 0) as \"inserted!\"",
             PatientId::new().as_uuid(),
             clinic.as_uuid(),
             patient.fhir_id,
@@ -90,16 +91,20 @@ impl Records {
             json,
             now,
         )
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
         tx.commit().await?;
-        Ok(saved)
+        Ok(match before {
+            _ if inserted => Saved::New,
+            Some(before) if before == json => Saved::Unchanged,
+            _ => Saved::Updated,
+        })
     }
 
     /// `clinic`'s patients, by name.
     pub async fn list(&self, clinic: ClinicId) -> Result<Vec<PatientSummary>, sqlx::Error> {
         let rows = sqlx::query!(
-            "select id, fhir_id, name from patients where tenant_id = $1 order by name, id",
+            "select id, fhir_id, name, not_current from patients where tenant_id = $1 order by name, id",
             clinic.as_uuid()
         )
         .fetch_all(&self.pool)
@@ -110,8 +115,38 @@ impl Records {
                 id: row.id.into(),
                 fhir_id: row.fhir_id,
                 name: row.name,
+                not_current: row.not_current,
             })
             .collect())
+    }
+
+    /// Marks `clinic`'s patient `fhir_id`, if stored, as not current, for
+    /// `reason`.
+    pub async fn mark_not_current(&self, clinic: ClinicId, fhir_id: &str, reason: &str) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "update patients set not_current = $3 where tenant_id = $1 and fhir_id = $2",
+            clinic.as_uuid(),
+            fhir_id,
+            reason
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Marks every one of `clinic`'s patients not in `seen` as not current,
+    /// for `reason`; returns how many.
+    pub async fn mark_unseen(&self, clinic: ClinicId, seen: &[String], reason: &str) -> Result<u64, sqlx::Error> {
+        let done = sqlx::query!(
+            "update patients set not_current = $3
+             where tenant_id = $1 and not (fhir_id = any($2)) and not_current is distinct from $3",
+            clinic.as_uuid(),
+            seen,
+            reason
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected())
     }
 
     /// One of `clinic`'s patients' records; `None` for another clinic's.

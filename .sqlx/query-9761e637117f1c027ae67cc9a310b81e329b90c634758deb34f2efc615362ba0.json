@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into patients (id, tenant_id, fhir_id, name, given_name, email, no_email, record, fetched_at, updated_at)\n             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)\n             on conflict (tenant_id, fhir_id) do update set\n                 name = excluded.name, given_name = excluded.given_name, email = excluded.email,\n                 no_email = excluded.no_email, record = excluded.record, fetched_at = excluded.fetched_at,\n                 not_current = null,\n                 updated_at = case when patients.record = excluded.record then patients.updated_at\n                                   else excluded.updated_at end\n             returning (xmax = 0) as \"inserted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9761e637117f1c027ae67cc9a310b81e329b90c634758deb34f2efc615362ba0"
+}

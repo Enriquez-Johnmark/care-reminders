@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update patients set not_current = $3\n             where tenant_id = $1 and not (fhir_id = any($2)) and not_current is distinct from $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55a33a677deab66ce7983c68b9dac2cf1afffa31cf820e5fe4d706a696dbe84d"
+}

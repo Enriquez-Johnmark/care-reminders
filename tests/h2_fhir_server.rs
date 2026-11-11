@@ -233,6 +233,61 @@ mod fetching {
         assert_eq!(patients(&pool, clinic).await, 0);
     }
 
+    /// A fake FHIR server whose answer can change between fetches.
+    async fn changing_server() -> MockServer {
+        MockServer::start().await
+    }
+
+    async fn answer_with(server: &MockServer, body: &Value) {
+        server.reset().await;
+        Mock::given(method("GET"))
+            .and(path("/fhir/Patient"))
+            .respond_with(fhir(body))
+            .mount(server)
+            .await;
+    }
+
+    async fn not_current(pool: &PgPool, clinic: ClinicId) -> Vec<(String, Option<String>)> {
+        Records::new(pool.clone(), clock())
+            .list(clinic)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|p| (p.fhir_id, p.not_current))
+            .collect()
+    }
+
+    #[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+    async fn h2_a_patient_gone_from_the_server_or_refused_is_marked_not_current_until_fetched_again(pool: PgPool) {
+        let server = changing_server().await;
+        let (servers, clinic) = connected(&pool, &server, clock()).await;
+        answer_with(&server, &searchset(&[resources(1), resources(2)], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+
+        answer_with(&server, &searchset(&[resources(1)], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+        let gone = not_current(&pool, clinic).await;
+        let mut broken = resources(1);
+        broken[0]["birthDate"] = json!("sometime");
+        answer_with(&server, &searchset(&[broken], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+        let refused = not_current(&pool, clinic).await;
+        answer_with(&server, &searchset(&[resources(1), resources(2)], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+        let back = not_current(&pool, clinic).await;
+
+        let reason = |list: &[(String, Option<String>)], id: &str| {
+            list.iter().find(|(fhir_id, _)| fhir_id == id).unwrap().1.clone()
+        };
+        assert_eq!(reason(&gone, "p01"), None);
+        assert!(
+            reason(&gone, "p02").unwrap().contains("not on the FHIR server"),
+            "{gone:?}"
+        );
+        assert!(reason(&refused, "p01").unwrap().contains("birth date"), "{refused:?}");
+        assert!(back.iter().all(|(_, reason)| reason.is_none()), "{back:?}");
+    }
+
     #[sqlx::test(migrator = "care_reminders::MIGRATOR")]
     async fn h2_the_hourly_fetch_runs_once_an_hour_has_passed_since_the_last(pool: PgPool) {
         let server = server(fhir(&searchset(&[resources(1)], None))).await;

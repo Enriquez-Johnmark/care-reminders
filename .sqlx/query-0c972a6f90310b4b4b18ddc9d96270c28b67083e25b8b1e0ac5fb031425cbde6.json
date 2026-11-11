@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update patients set not_current = $3 where tenant_id = $1 and fhir_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0c972a6f90310b4b4b18ddc9d96270c28b67083e25b8b1e0ac5fb031425cbde6"
+}

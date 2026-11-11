@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select id, fhir_id, name from patients where tenant_id = $1 order by name, id",
+  "query": "select id, fhir_id, name, not_current from patients where tenant_id = $1 order by name, id",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,17 @@
             "name": "name"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "not_current",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "not_current"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,8 +56,9 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "02a954e1ce50fab70eff23217a5d46d9dfdd8d90fd16453af981ec1bb72fae5b"
+  "hash": "3e7ebed016f59b73056dfc5588de2e8b1dc9c85527a05860394287c06012f693"
 }
