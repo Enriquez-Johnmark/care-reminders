@@ -142,7 +142,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm build
-          pnpm exec playwright install --with-deps chromium
+          # The runner image already has Chromium's libraries; the extra
+          # system packages come from Ubuntu's mirror, which can be
+          # unreachable, so they are tried for two minutes at most.
+          timeout 120 pnpm exec playwright install-deps chromium || echo "::warning::couldn't install Chromium's extra system packages; trying without them"
+          pnpm exec playwright install chromium
       - name: Start with one clinic, its administrator and a care coordinator, fetching from HAPI FHIR
         run: |
           bin=./target/debug/care-reminders
