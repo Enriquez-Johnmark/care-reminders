@@ -243,3 +243,22 @@ async fn f2_the_demos_simulated_reply_answers_the_patients_latest_emailed_remind
     assert_eq!(received, care_reminders::sending::Received::Reply(emailed.into()));
     assert_eq!(stopped, [emailed]);
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f3_a_link_with_the_sentences_full_stop_still_works(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, _) = anas_follow_ups(&s.pool).await;
+    let link = common::sending().opt_out_link(result.into());
+    let app = common::app(&s.pool, s.clock.clone());
+
+    // Some mail programs keep the punctuation after a link in the link.
+    for stuck in [".", ",", ")", ".)"] {
+        let page = common::fetch(
+            &app,
+            "GET",
+            &format!("{}{stuck}", link.trim_start_matches(common::BASE_URL)),
+        )
+        .await;
+        assert_eq!(page.0, 200, "{stuck}");
+    }
+}

@@ -55,6 +55,8 @@ impl Sending {
 
     /// The follow-up an opt-out token names, if its signature is right (F4).
     pub fn opt_out_of(&self, token: &str) -> Option<FollowUpId> {
+        // A mail program may keep the sentence's punctuation in the link.
+        let token = token.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '>', '"', '\'']);
         self.opt_out.verify(token).map(FollowUpId::from)
     }
 
