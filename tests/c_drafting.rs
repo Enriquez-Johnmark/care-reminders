@@ -14,7 +14,7 @@ use common::records;
 use serde_json::Value;
 use time::macros::date;
 
-const KINDS: [Kind; 3] = [Kind::AfterResult, Kind::ScreeningRecall, Kind::AfterDischarge];
+const KINDS: [Kind; 3] = Kind::ALL;
 
 #[test]
 fn a2_the_request_carries_only_the_kind_which_reminder_and_the_tone() {

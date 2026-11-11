@@ -5,7 +5,7 @@
 //! result.
 
 use crate::checks::check;
-use crate::drafting::{Tone, parse_answer, request, template};
+use crate::drafting::{FillIns, Tone, fill, parse_answer, request, template};
 use crate::engine::cost_log::cost_nano_usd;
 use crate::engine::llm::{LanguageModel, Usage};
 use crate::fhir::Kind;
@@ -29,10 +29,10 @@ pub struct Asked {
 
 impl Asked {
     fn label(&self) -> String {
-        let tone = match self.tone {
-            Tone::Warm => "warm",
-            Tone::Plain => "plain",
-        };
+        let tone = serde_json::to_value(self.tone)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_default();
         format!("{}, reminder {}, {tone}", self.kind.code(), self.number)
     }
 }
@@ -40,7 +40,7 @@ impl Asked {
 /// Every request the demo can make.
 pub fn requests() -> Vec<Asked> {
     let mut all = Vec::new();
-    for kind in [Kind::AfterResult, Kind::ScreeningRecall, Kind::AfterDischarge] {
+    for kind in Kind::ALL {
         for number in 1..=3 {
             for tone in [Tone::Warm, Tone::Plain] {
                 all.push(Asked { kind, number, tone });
@@ -96,22 +96,47 @@ impl DrafterResult {
     }
 }
 
+/// Sample fill-ins: the date to book by ahead (`overdue` false) or passed.
+fn sample(overdue: bool) -> FillIns {
+    let due_by = time::macros::date!(2026 - 12 - 09);
+    FillIns {
+        first_name: "Ana".to_owned(),
+        clinic_name: "Example Family Practice".to_owned(),
+        clinic_phone: "(555) 010-0100".to_owned(),
+        due_by,
+        today: if overdue {
+            due_by + time::Duration::days(1)
+        } else {
+            due_by
+        },
+        opt_out_link: "https://reminders.example.test/o/sample".to_owned(),
+    }
+}
+
 fn checked(asked: Asked, text: &str, cost_nano_usd: Option<i64>) -> Outcome {
     let result = check(text);
+    let mut failures: Vec<String> = result
+        .problems
+        .iter()
+        .map(|p| {
+            let name = serde_json::to_value(p.check)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default();
+            format!("{name}: {}", p.detail)
+        })
+        .collect();
+    // It must also fill, whether the date is still ahead or has passed.
+    for overdue in [false, true] {
+        if let Err(err) = fill(text, &sample(overdue)) {
+            failures.push(format!("fill-ins: {err}"));
+        }
+    }
+    failures.dedup();
     Outcome {
         asked,
-        passed: result.problems.is_empty(),
-        failures: result
-            .problems
-            .iter()
-            .map(|p| {
-                let name = serde_json::to_value(p.check)
-                    .ok()
-                    .and_then(|v| v.as_str().map(str::to_owned))
-                    .unwrap_or_default();
-                format!("{name}: {}", p.detail)
-            })
-            .collect(),
+        passed: failures.is_empty(),
+        failures,
         grade: Some(result.grade),
         cost_nano_usd,
         error: None,

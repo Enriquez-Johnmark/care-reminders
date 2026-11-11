@@ -71,3 +71,19 @@ async fn i3_the_report_compares_sonnet_haiku_and_the_template_on_pass_rate_and_c
         "evalset/report.md is out of date: run `cargo run -- eval`"
     );
 }
+
+#[tokio::test]
+async fn i2_a_draft_that_passes_its_checks_but_cant_be_filled_once_overdue_fails() {
+    let odd = evaluate(&Fake(Some(
+        "Hello {first_name}, this is {clinic_name}. The date is {due_by}. Please call {clinic_phone}. \
+         To stop these messages, go here: {opt_out_link}",
+    )))
+    .await;
+
+    assert_eq!(odd.pass_rate(), 0.0);
+    assert!(
+        odd.outcomes[0].failures.iter().any(|f| f.contains("has passed")),
+        "{:?}",
+        odd.outcomes[0]
+    );
+}

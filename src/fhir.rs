@@ -74,6 +74,9 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Every kind.
+    pub const ALL: [Self; 3] = [Self::AfterResult, Self::ScreeningRecall, Self::AfterDischarge];
+
     /// Its code, as in the opt-out extension and the database.
     pub fn code(self) -> &'static str {
         match self {
@@ -85,9 +88,7 @@ impl Kind {
 
     /// The kind with this code.
     pub fn from_code(code: &str) -> Option<Self> {
-        [Self::AfterResult, Self::ScreeningRecall, Self::AfterDischarge]
-            .into_iter()
-            .find(|kind| kind.code() == code)
+        Self::ALL.into_iter().find(|kind| kind.code() == code)
     }
 }
 
