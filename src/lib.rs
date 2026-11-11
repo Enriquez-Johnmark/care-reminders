@@ -5,6 +5,7 @@
 
 pub mod checks;
 pub mod demo_data;
+pub mod drafting;
 pub mod evidence;
 pub mod fhir;
 pub mod fhir_server;
