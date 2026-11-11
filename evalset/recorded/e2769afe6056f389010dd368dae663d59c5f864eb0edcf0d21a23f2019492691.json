@@ -1,0 +1,7 @@
+{
+  "model": "claude-haiku-5-5",
+  "text": "{\"text\":\"Hi {first_name}, this is {clinic_name}. We would like to see you for a follow-up visit. Please call us at {clinic_phone} to book a time before {due_by}. If you do not want these reminders, you can stop them here: {opt_out_link}. Thank you, and we look forward to hearing from you.\"}",
+  "request_id": "req_011CgwLia9i82N3aojbYyTd2",
+  "input_tokens": 572,
+  "output_tokens": 108
+}

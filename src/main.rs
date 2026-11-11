@@ -13,7 +13,7 @@ const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --na
                      clinic add-coordinator --clinic ID --email EMAIL --name NAME | \
                      clinic set-phone --clinic ID --phone PHONE | clinic set-time-zone --clinic ID --zone ZONE | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
-                     work [--recorded] | serve [--recorded] | outbox-drain | simulate-reply --clinic ID --patient FHIR_ID --text TEXT | \
+                     work [--recorded] | serve [--recorded] | outbox-drain | eval [--record] | simulate-reply --clinic ID --patient FHIR_ID --text TEXT | \
                      evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
@@ -120,6 +120,7 @@ async fn run() -> anyhow::Result<()> {
         }
         Some("work") => work(&args).await,
         Some("outbox-drain") => outbox_drain().await,
+        Some("eval") => evaluate(args.iter().any(|arg| arg == "--record")).await,
         Some("simulate-reply") => {
             let clinic = clinic_option(&args)?;
             let (patient, text) = (option(&args, "--patient")?, option(&args, "--text")?);
@@ -422,4 +423,55 @@ fn drain_clock() -> anyhow::Result<Arc<dyn care_reminders::engine::clock::Clock>
         return Ok(Arc::new(care_reminders::engine::clock::FixedClock::new(at)));
     }
     Ok(Arc::new(SystemClock))
+}
+
+/// Measures Sonnet, Haiku and the template on every request the demo can
+/// make, and writes `evalset/report.md` (I2, I3). From the recordings by
+/// default; with `--record`, asks Claude with the owner's key for what isn't
+/// recorded yet.
+async fn evaluate(record: bool) -> anyhow::Result<()> {
+    use care_reminders::engine::llm::AnthropicClient;
+    use care_reminders::eval::{MODELS, evaluate, evaluate_template, report};
+    use care_reminders::model::{DIR, RecordMissing, Recorded};
+
+    let dir = std::path::Path::new(DIR);
+    std::fs::create_dir_all(dir).context("making the recordings folder")?;
+    let mut results = Vec::new();
+    let mut recorders = Vec::new();
+    for model in MODELS {
+        let result = if record {
+            let key = std::env::var("OWNER_ANTHROPIC_API_KEY")
+                .ok()
+                .filter(|key| !key.trim().is_empty())
+                .context("--record needs the owner's key in OWNER_ANTHROPIC_API_KEY")?;
+            let base = std::env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_owned());
+            let client = AnthropicClient::new(&base, key.into(), model, std::time::Duration::from_secs(90))
+                .context("setting up the model client")?;
+            let recorder = RecordMissing::new(client, dir);
+            let result = evaluate(&recorder).await;
+            println!(
+                "{model}: asked Claude {} time(s); the rest were already recorded",
+                recorder.live_calls()
+            );
+            recorders.push(recorder);
+            result
+        } else {
+            evaluate(&Recorded::new(model, dir)).await
+        };
+        results.push(result);
+    }
+    results.push(evaluate_template());
+    if record {
+        // Only after every model ran: one model's recordings are another's unused.
+        let mut used = std::collections::HashSet::new();
+        for recorder in &recorders {
+            used.extend(recorder.used());
+        }
+        let removed = care_reminders::model::remove_unused(dir, &used).context("removing unused recordings")?;
+        println!("removed {removed} recording(s) no request uses any more");
+    }
+    let text = report(&results);
+    std::fs::write("evalset/report.md", &text).context("writing evalset/report.md")?;
+    print!("{text}");
+    Ok(())
 }

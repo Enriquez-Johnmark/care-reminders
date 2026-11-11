@@ -1,0 +1,7 @@
+{
+  "model": "claude-sonnet-5-5",
+  "text": "{\"text\":\"Hello {first_name}, this is {clinic_name}. We wrote to you before about a follow-up visit. We still have not heard back, so we are writing once more. Please book a visit by {due_by}. You can call us at {clinic_phone}. We are happy to help you find a time. If you do not want these reminders, you can stop them here: {opt_out_link}. Thank you.\"}",
+  "request_id": "req_011CgwLfoYmt25rgRS1YvAcZ",
+  "input_tokens": 572,
+  "output_tokens": 127
+}

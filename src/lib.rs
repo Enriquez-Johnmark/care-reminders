@@ -7,6 +7,7 @@ pub mod activity;
 pub mod checks;
 pub mod demo_data;
 pub mod drafting;
+pub mod eval;
 pub mod evidence;
 pub mod fhir;
 pub mod fhir_server;
