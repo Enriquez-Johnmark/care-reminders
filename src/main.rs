@@ -6,9 +6,12 @@ use std::sync::Arc;
 use anyhow::Context;
 use care_reminders::engine::accounts::Accounts;
 use care_reminders::engine::clock::SystemClock;
+use care_reminders::fhir_server::{FhirServers, ServerAddress};
+use care_reminders::records::ClinicId;
 
 const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --name NAME --email EMAIL | \
-                     evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
+                     clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
+                     work | evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
     let result = tokio::runtime::Builder::new_multi_thread()
@@ -45,6 +48,42 @@ async fn run() -> anyhow::Result<()> {
             println!("{clinic}");
             Ok(())
         }
+        Some("clinic") if args.get(1).map(String::as_str) == Some("set-fhir-server") => {
+            let clinic = clinic_option(&args)?;
+            let address = ServerAddress::parse(option(&args, "--url")?)?;
+            FhirServers::new(connect().await?, Arc::new(SystemClock))
+                .set(clinic, &address, "operator")
+                .await
+                .context("setting the FHIR server")?;
+            println!("{clinic} fetches from {address}");
+            Ok(())
+        }
+        Some("fetch") => {
+            let clinic = clinic_option(&args)?;
+            let outcome = FhirServers::new(connect().await?, Arc::new(SystemClock))
+                .fetch(clinic, "operator")
+                .await?;
+            println!(
+                "from {}: {} new, {} updated, {} unchanged, {} refused",
+                outcome.server,
+                outcome.new,
+                outcome.updated,
+                outcome.unchanged,
+                outcome.refused.len()
+            );
+            for refused in &outcome.refused {
+                println!("  {}: {}", refused.patient, refused.reason);
+            }
+            Ok(())
+        }
+        Some("load-made-up") => {
+            let address = ServerAddress::parse(option(&args, "--url")?)?;
+            let today = care_reminders::engine::clock::Clock::now(&SystemClock).date();
+            let loaded = care_reminders::fhir_server::load_made_up(&address, today).await?;
+            println!("loaded {loaded} made-up patients into {address}");
+            Ok(())
+        }
+        Some("work") => work().await,
         Some("demo-data") => write_demo_data(),
         Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),
@@ -101,4 +140,26 @@ fn write_demo_data() -> anyhow::Result<()> {
     }
     println!("wrote {} made-up patients to {}", files.len(), dir.display());
     Ok(())
+}
+
+/// The clinic named by `--clinic`.
+fn clinic_option(args: &[String]) -> anyhow::Result<ClinicId> {
+    Ok(option(args, "--clinic")?
+        .parse::<uuid::Uuid>()
+        .context("--clinic is not a clinic ID")?
+        .into())
+}
+
+/// The background worker: every minute, the hourly fetch for each clinic
+/// that is due (H2).
+async fn work() -> anyhow::Result<()> {
+    let servers = FhirServers::new(connect().await?, Arc::new(SystemClock));
+    loop {
+        for (clinic, result) in servers.fetch_due().await? {
+            if let Err(err) = result {
+                eprintln!("care-reminders: the hourly fetch for {clinic} failed: {err}");
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
 }
