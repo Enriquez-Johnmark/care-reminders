@@ -16,8 +16,8 @@ export function useQueue() {
     queryKey: reminderKeys.queue(),
     queryFn: () => api<QueueRow[]>("GET", "/api/queue"),
     // The worker chooses and drafts in the background; show new reminders
-    // as they arrive.
-    refetchInterval: 5000,
+    // as they arrive, checking every quarter minute while the page is shown.
+    refetchInterval: 15_000,
   })
 }
 
