@@ -311,8 +311,15 @@ pub async fn withdraw_stopped(
     .fetch_all(pool)
     .await?;
     let outbox = Outbox::new(pool.clone(), clock.clone());
+    let mut withdrawn = 0;
     for row in &waiting {
-        outbox.cancel(clinic, row.message_id.into(), actor).await?;
+        // One that started to go meanwhile can't be withdrawn; the rules
+        // refuse it anyway if it hasn't left. It never holds up the rest.
+        if let Err(err) = outbox.cancel(clinic, row.message_id.into(), actor).await {
+            tracing::warn!(%err, message = %row.message_id, "couldn't withdraw a stopped follow-up's email");
+            continue;
+        }
+        withdrawn += 1;
         let event = AuditEvent {
             tenant: clinic,
             at: clock.now(),
@@ -324,7 +331,16 @@ pub async fn withdraw_stopped(
         };
         audit::record(pool, &event).await?;
     }
-    Ok(waiting.len())
+    Ok(withdrawn)
+}
+
+/// [`withdraw_stopped`] after a stop is saved: a failure is logged, never
+/// reported as the stop failing, since the stop itself stands and the
+/// sending rules refuse a stopped follow-up's email.
+pub(crate) async fn withdraw_after_stop(pool: &PgPool, clock: Arc<dyn Clock>, clinic: TenantId, actor: &str) {
+    if let Err(err) = withdraw_stopped(pool, clock, clinic, actor).await {
+        tracing::warn!(%err, %clinic, "couldn't withdraw stopped follow-ups' emails");
+    }
 }
 
 /// What an opt-out link names, as its page shows it: only the clinic.
@@ -423,7 +439,7 @@ pub async fn opt_out(
         audit::record(&mut *tx, &event).await?;
     }
     tx.commit().await?;
-    withdraw_stopped(pool, clock, clinic, "patient").await?;
+    withdraw_after_stop(pool, clock, clinic, "patient").await;
     Ok(Some(OptOutLink {
         clinic_name,
         done: true,
@@ -505,7 +521,7 @@ pub async fn receive(
     };
     audit::record(&mut *tx, &event).await?;
     tx.commit().await?;
-    withdraw_stopped(pool, clock, clinic, "patient").await?;
+    withdraw_after_stop(pool, clock, clinic, "patient").await;
     Ok(Received::Reply(follow_up))
 }
 
