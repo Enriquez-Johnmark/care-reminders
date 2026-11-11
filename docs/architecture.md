@@ -85,8 +85,8 @@ Before every commit: `cargo fmt --check`, `cargo clippy --all-targets --all-feat
 | Milestone | What | Criteria | Status |
 |---|---|---|---|
 | M1 | Data and fetching: the generator, FHIR reading, HAPI FHIR, fetching, clinic scoping, the first evidence pack | A1, A3, A4, H2, H3, J1 | done (2026-11-11) |
-| M2 | Rules and follow-ups | B1–B5 | in progress |
-| M3 | Drafts and checks: the model request, fill-ins, every check, recorded answers, the 40 bad drafts, the drafting job | A2, C1–C7, E6, I1 | planned |
+| M2 | Rules and follow-ups | B1–B5 | done (2026-11-11) |
+| M3 | Drafts and checks: the model request, fill-ins, every check, recorded answers, the 40 bad drafts, the drafting job | A2, C1–C7, E6, I1 | in progress |
 | M4 | Logins, review and the activity log, with the staff pages | D1–D6, G1–G3, H1 | planned |
 | M5 | Sending and stops: the outbox, caps, sending hours, no-email patients, the opt-out page, replies, bookings | E1–E5, E7, F1–F4 | planned |
 | M6 | Measurement: Claude's recorded drafts, Sonnet against Haiku against the template | I2, I3 | planned |

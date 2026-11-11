@@ -14,7 +14,7 @@ Each gate needs the owner's explicit "yes"; an approval for one phase never carr
 | 2. Brief | done, approved 2026-11-11 (`docs/product/brief.md`) |
 | 3. Spec & acceptance criteria | done, approved 2026-11-11 (`docs/product/spec.md`, 43 criteria) |
 | 4. Architecture | done, approved 2026-11-11 (`docs/architecture.md`) |
-| 5. Build | **in progress**, approved 2026-11-11: M1 (data and fetching) done (`docs/evidence/m1.html`); M2 (rules and follow-ups) next |
+| 5. Build | **in progress**, approved 2026-11-11: M1 (data and fetching) and M2 (rules and follow-ups) done (`docs/evidence/m2.html`); M3 (drafts and checks) next |
 
 **No application code exists or gets written until the build is approved.** Research, docs and throwaway prototypes that answer a specific question are in scope; prototypes live in `prototypes/<question>/` and are deleted once their answer is recorded.
 
