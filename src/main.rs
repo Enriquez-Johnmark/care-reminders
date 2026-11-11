@@ -13,7 +13,7 @@ const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --na
                      clinic add-coordinator --clinic ID --email EMAIL --name NAME | \
                      clinic set-phone --clinic ID --phone PHONE | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
-                     work [--recorded] | serve [--recorded] | \
+                     work [--recorded] | serve [--recorded] | outbox-drain | \
                      evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
@@ -112,6 +112,7 @@ async fn run() -> anyhow::Result<()> {
             Ok(())
         }
         Some("work") => work(&args).await,
+        Some("outbox-drain") => outbox_drain().await,
         Some("demo-data") => write_demo_data(),
         Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),
@@ -341,4 +342,45 @@ fn live_model() -> anyhow::Result<Option<care_reminders::engine::llm::AnthropicC
     )
     .context("setting up the model client")?;
     Ok(Some(client))
+}
+
+/// Releases waiting reminders, sends what is due once, and marks what went
+/// out: what the server's sender does each round, as one command (E2).
+async fn outbox_drain() -> anyhow::Result<()> {
+    use care_reminders::engine::mail::MailpitMailer;
+    use care_reminders::engine::outbox::Sender;
+    use care_reminders::sending::{SendingRules, finish};
+
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .init();
+    let setting = |name: &str, default: &str| std::env::var(name).unwrap_or_else(|_| default.to_owned());
+    let pool = connect().await?;
+    let clock = drain_clock()?;
+    finish(&pool, clock.clone()).await.context("releasing reminders")?;
+    let mailer = MailpitMailer::new(
+        &setting("MAILPIT_URL", "http://localhost:8025"),
+        &setting("MAIL_FROM_ADDRESS", "reminders@example-family-practice.test"),
+    )
+    .context("setting up Mailpit")?;
+    let rules = Arc::new(SendingRules::new(pool.clone(), clock.clone()));
+    let report = Sender::new(pool.clone(), mailer, clock.clone(), rules)
+        .drain_once(50)
+        .await
+        .context("sending")?;
+    finish(&pool, clock).await.context("marking reminders sent")?;
+    println!("{report:?}");
+    Ok(())
+}
+
+/// The system clock; in a test build only, the time in `CARE_REMINDERS_NOW`
+/// if set, so the crash test sends inside the sending hours whatever the day.
+fn drain_clock() -> anyhow::Result<Arc<dyn care_reminders::engine::clock::Clock>> {
+    #[cfg(feature = "failpoints")]
+    if let Ok(now) = std::env::var("CARE_REMINDERS_NOW") {
+        let at = time::OffsetDateTime::parse(&now, &time::format_description::well_known::Rfc3339)
+            .context("CARE_REMINDERS_NOW is not an RFC 3339 time")?;
+        return Ok(Arc::new(care_reminders::engine::clock::FixedClock::new(at)));
+    }
+    Ok(Arc::new(SystemClock))
 }
