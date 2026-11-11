@@ -227,8 +227,18 @@ async fn run_worker(
             Ok(drafted) => println!("drafted {drafted} reminder(s)"),
             Err(err) => eprintln!("care-reminders: drafting failed: {err}"),
         }
-        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        tokio::time::sleep(worker_tick()).await;
     }
+}
+
+/// How long the worker rests between passes: a minute, or
+/// `WORKER_TICK_SECS` (the browser tests use a second or two).
+fn worker_tick() -> std::time::Duration {
+    let seconds = std::env::var("WORKER_TICK_SECS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(60);
+    std::time::Duration::from_secs(seconds)
 }
 
 /// How often `serve` drains the outbox when nothing wakes it.

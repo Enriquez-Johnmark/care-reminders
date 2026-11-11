@@ -19,9 +19,9 @@ use crate::fhir::Kind;
 use crate::records::ClinicId;
 use crate::reminders::{DraftId, NewDraft, ReminderId, add_draft, write_draft};
 
-/// Most drafts the model writes for one reminder: the first and two new
-/// ones the coordinator asked for (D5).
-pub const MAX_MODEL_DRAFTS: i64 = 3;
+/// Most new drafts a coordinator may ask the model for, after the first
+/// draft (D5).
+pub const MAX_NEW_DRAFTS: i64 = 2;
 
 /// Why a review step was refused.
 #[derive(Debug, thiserror::Error)]
@@ -304,14 +304,15 @@ impl Reviews {
             }
             (current.follow_up_kind, current.number)
         };
-        let model_drafts = sqlx::query_scalar!(
-            "select count(*) as \"count!\" from drafts where tenant_id = $1 and reminder_id = $2 and source = 'model'",
+        let new_drafts = sqlx::query_scalar!(
+            "select count(*) as \"count!\" from drafts
+             where tenant_id = $1 and reminder_id = $2 and source = 'model' and attempt > 1",
             who.tenant.as_uuid(),
             reminder.as_uuid(),
         )
         .fetch_one(&self.pool)
         .await?;
-        if model_drafts >= MAX_MODEL_DRAFTS {
+        if new_drafts >= MAX_NEW_DRAFTS {
             return Err(ReviewError::NoMoreDrafts);
         }
         let tone = sqlx::query_scalar!(

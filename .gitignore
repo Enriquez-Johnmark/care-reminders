@@ -2,3 +2,6 @@
 /target
 node_modules/
 .DS_Store
+web/dist/
+web/test-results/
+web/playwright-report/

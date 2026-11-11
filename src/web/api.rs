@@ -28,7 +28,7 @@ use crate::fhir_server::{FetchError, FetchOutcome, FhirServers};
 use crate::follow_ups::FollowUpId;
 use crate::model::AnyModel;
 use crate::reminders::{DraftId, ReminderId};
-use crate::review::{MAX_MODEL_DRAFTS, ReviewError, content_hash};
+use crate::review::{MAX_NEW_DRAFTS, ReviewError, content_hash};
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
@@ -453,7 +453,7 @@ async fn reminder(
                   ru.name as rule, p.name as patient_name, p.given_name, p.no_email,
                   d.id as draft, d.source, d.text, d.problems, d.warnings, d.grade,
                   (select count(*) from drafts m where m.tenant_id = r.tenant_id and m.reminder_id = r.id
-                     and m.source = 'model') as "model_drafts!"
+                     and m.source = 'model' and m.attempt > 1) as "new_drafts!"
            from reminders r
            join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id
            join rules ru on ru.tenant_id = f.tenant_id and ru.id = f.rule_id
@@ -518,7 +518,7 @@ async fn reminder(
         preview_problem,
         template: template(row.number as u8),
         approved_at: approval.map(|a| time_text(a.approved_at)),
-        new_drafts_left: (MAX_MODEL_DRAFTS - row.model_drafts).max(0),
+        new_drafts_left: (MAX_NEW_DRAFTS - row.new_drafts).max(0),
         contact_another_way: row.no_email,
         finished: row.outcome,
     }))

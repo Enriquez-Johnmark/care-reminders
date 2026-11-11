@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select r.id, r.number, r.follow_up_id, r.outcome, f.kind, f.reason, f.due_by, f.rule_version,\n                  ru.name as rule, p.name as patient_name, p.given_name, p.no_email,\n                  d.id as draft, d.source, d.text, d.problems, d.warnings, d.grade,\n                  (select count(*) from drafts m where m.tenant_id = r.tenant_id and m.reminder_id = r.id\n                     and m.source = 'model') as \"model_drafts!\"\n           from reminders r\n           join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n           join rules ru on ru.tenant_id = f.tenant_id and ru.id = f.rule_id\n           join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n           join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n           where r.tenant_id = $1 and r.id = $2\n           order by d.attempt desc limit 1",
+  "query": "select r.id, r.number, r.follow_up_id, r.outcome, f.kind, f.reason, f.due_by, f.rule_version,\n                  ru.name as rule, p.name as patient_name, p.given_name, p.no_email,\n                  d.id as draft, d.source, d.text, d.problems, d.warnings, d.grade,\n                  (select count(*) from drafts m where m.tenant_id = r.tenant_id and m.reminder_id = r.id\n                     and m.source = 'model' and m.attempt > 1) as \"new_drafts!\"\n           from reminders r\n           join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n           join rules ru on ru.tenant_id = f.tenant_id and ru.id = f.rule_id\n           join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n           join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n           where r.tenant_id = $1 and r.id = $2\n           order by d.attempt desc limit 1",
   "describe": {
     "columns": [
       {
@@ -203,7 +203,7 @@
       },
       {
         "ordinal": 18,
-        "name": "model_drafts!",
+        "name": "new_drafts!",
         "type_info": "Int8",
         "origin": "Expression"
       }
@@ -236,5 +236,5 @@
       null
     ]
   },
-  "hash": "7afdb25b966aea3f9c79343a0bfe0aa728f99813690fac1f685b6dd44ec5d7f4"
+  "hash": "46614e0891128d136402fea96ca719b38cfc8610eb2d7d8dccfe4a0e688a3d44"
 }
