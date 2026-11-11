@@ -71,6 +71,9 @@ pub struct Due {
     pub reason: String,
     /// When the care is due by.
     pub due_by: Date,
+    /// From when a booking answers it: the result or discharge it follows,
+    /// or for a screening the day it was found due.
+    pub since: Date,
 }
 
 /// A new clinic's rules: their kind, name and settings.
@@ -139,6 +142,7 @@ pub fn due(settings: &RuleSettings, record: &PatientRecord, today: Date) -> Vec<
                 source: format!("Observation/{}", result.fhir_id),
                 reason: format!("Abnormal {} result on {}", result.name, result.effective),
                 due_by: result.effective + Duration::days(*within_days),
+                since: result.effective,
             })
             .collect(),
         RuleSettings::ScreeningRecall {
@@ -170,6 +174,7 @@ pub fn due(settings: &RuleSettings, record: &PatientRecord, today: Date) -> Vec<
                 source: format!("screening/{screening}"),
                 reason,
                 due_by: today + Duration::days(*within_days),
+                since: today,
             }]
         }
         RuleSettings::AfterDischarge {
@@ -185,6 +190,7 @@ pub fn due(settings: &RuleSettings, record: &PatientRecord, today: Date) -> Vec<
                 source: format!("Encounter/{}", stay.fhir_id),
                 reason: format!("Discharged from hospital on {day}"),
                 due_by: day + Duration::days(*within_days),
+                since: day,
             })
             .collect(),
     }

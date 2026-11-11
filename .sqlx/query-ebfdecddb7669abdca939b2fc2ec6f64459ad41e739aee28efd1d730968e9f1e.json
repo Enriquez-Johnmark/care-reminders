@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select f.id, p.name as patient_name, f.kind, f.reason, f.due_by, r.name as rule_name, f.rule_version, f.stop\n             from follow_ups f\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join rules r on r.tenant_id = f.tenant_id and r.id = f.rule_id\n             where f.tenant_id = $1\n             order by f.due_by, p.name, f.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "patient_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "due_by",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "due_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rule_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rule_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "rule_version"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "stop",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "stop"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "ebfdecddb7669abdca939b2fc2ec6f64459ad41e739aee28efd1d730968e9f1e"
+}

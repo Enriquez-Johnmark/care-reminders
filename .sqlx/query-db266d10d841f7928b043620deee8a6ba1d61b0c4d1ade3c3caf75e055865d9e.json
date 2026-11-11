@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select id, kind, since from follow_ups\n                 where tenant_id = $1 and patient_id = $2 and stopped_at is null",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "since",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "since"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "db266d10d841f7928b043620deee8a6ba1d61b0c4d1ade3c3caf75e055865d9e"
+}

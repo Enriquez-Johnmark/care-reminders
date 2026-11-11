@@ -7,6 +7,7 @@ pub mod demo_data;
 pub mod evidence;
 pub mod fhir;
 pub mod fhir_server;
+pub mod follow_ups;
 pub mod html;
 pub mod made_up;
 pub mod records;
