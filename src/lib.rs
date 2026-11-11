@@ -18,6 +18,7 @@ pub mod records;
 pub mod reminders;
 pub mod review;
 pub mod rules;
+pub mod sending_hours;
 pub mod settings;
 pub mod web;
 

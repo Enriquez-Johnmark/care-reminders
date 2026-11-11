@@ -28,6 +28,7 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "signal", "time", "net"] }
 uuid = { version = "1.28.0", features = ["v7", "serde"] }
+jiff = { version = "0.2", default-features = false, features = ["std", "tzdb-bundle-always"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
