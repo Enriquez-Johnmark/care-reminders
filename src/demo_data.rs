@@ -293,7 +293,12 @@ fn patient(id: &str, number: usize, person: &Person, day: Date) -> Value {
     let family = format!("{} (made up)", person.family);
     // Birthdays spread over the year, so ages are exact on `day`.
     let birthday = day - Duration::days((number as i64 * 37) % 300 + 1);
-    let birth = birthday.replace_year(birthday.year() - person.age).unwrap_or(birthday);
+    // 29 February moves to the 28th in a birth year that has no leap day.
+    let year = birthday.year() - person.age;
+    let birth = birthday
+        .replace_year(year)
+        .or_else(|_| (birthday - Duration::days(1)).replace_year(year))
+        .unwrap_or(birthday);
     let email = format!(
         "{}.{}@example.test",
         person.given.to_lowercase(),

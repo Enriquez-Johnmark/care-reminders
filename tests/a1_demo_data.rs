@@ -93,3 +93,15 @@ fn a1_the_committed_files_are_the_generators() {
         assert_eq!(committed, file.json, "{}: run `cargo run -- demo-data`", file.name);
     }
 }
+
+#[test]
+fn a1_every_patient_keeps_their_age_whatever_the_day_even_around_a_leap_day() {
+    let mut day = date!(2028 - 01 - 01);
+    while day.year() == 2028 {
+        for file in demo_data::generate(day) {
+            let birth = PatientRecord::read(&file.json).unwrap().patient.birth_date;
+            assert!(day.year() - birth.year() >= 18, "{day}: {} born {birth}", file.name);
+        }
+        day = day.next_day().unwrap();
+    }
+}
