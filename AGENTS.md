@@ -35,9 +35,16 @@ Research claims carry a source (URL, publisher, date) and a confidence (H/M/L). 
 - **API key only.** The Claude API through the owner's key (`OWNER_ANTHROPIC_API_KEY`), never a Claude subscription; no data to free model tiers that train on inputs.
 - **No compliance claims.** The README never says "HIPAA compliant" or "certified"; it says what the code enforces and how it is tested.
 - **Engine:** Nudgewright (decided 2026-11-10), a git dependency pinned to a release; an engine change is made and released there, never patched here.
+- **Read the `rust-best-practices` skill** (`.claude/skills/rust-best-practices`) before writing or reviewing Rust.
+- **React:** read the `vercel-react-best-practices`, `vercel-composition-patterns`, `shadcn`, `frontend-design`, `web-design-guidelines` and `ui-taste` skills (`.claude/skills/`) before writing or reviewing React. Third-party skills are read in full before they're added, recorded in `skills-lock.json` with source and hash, and may not run unpinned commands.
+- **Tests:** test first, using the `tdd` skill (one criterion's test, see it fail, then make it pass); every acceptance criterion has a test whose name starts with its ID.
 - **Report test results only from commands actually run.**
-- **Small commits** on `main`, each one change; messages imperative; no AI attribution trailers such as "Co-Authored-By" (owner's choice). Commits are signed with the owner's SSH key, so GitHub shows them as verified.
+- **Time:** read only through the engine's injected `Clock`; direct system-clock calls are banned with clippy `disallowed-methods`.
+- **Clinic isolation:** every repository function takes a `ClinicId` (the engine's `TenantId`), and every query filters on it; the exceptions are in `docs/architecture.md`.
+- **Small commits** on `main`, each one behaviour (a test plus the code that makes it pass) or one small refactor or doc change, aiming for under ~150 changed lines excluding `.sqlx/` and `Cargo.lock`; messages imperative; no AI attribution trailers such as "Co-Authored-By" (owner's choice). Commits are signed with the owner's SSH key, so GitHub shows them as verified.
 
 ## Working here
 
-- **Cloud sessions:** `scripts/cloud-session-start.sh` runs at session start (via `.claude/settings.json`) and sets up commit signing; the build's tools join it once there is code.
+- **Before every commit:** `cargo fmt --check`, `cargo clippy --all-targets --all-features --locked -- -D warnings` and `cargo nextest run --all-features --locked` pass. If SQL changed, run `cargo sqlx prepare -- --all-targets --all-features` and commit `.sqlx/`.
+- **Cloud sessions:** `scripts/cloud-session-start.sh` runs at session start (via `.claude/settings.json`): commit signing, Postgres and Mailpit, the pinned Rust and the migrations. On a local machine it does nothing.
+- **Locally:** `docker compose up -d`; `cp .env.example .env` once; `cargo run -- migrate`; then `cargo nextest run` (or `cargo test`).

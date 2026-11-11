@@ -1,0 +1,12 @@
+# Local defaults; CI sets these explicitly.
+[env]
+DATABASE_URL = "postgres://care_reminders:care_reminders@localhost:5432/care_reminders"
+# `cargo test` writes the API's TypeScript types for the React app here
+# (docs/frontend.md). Counts are small, so 64-bit integers become numbers.
+TS_RS_EXPORT_DIR = { value = "web/src/api/generated", relative = true }
+TS_RS_LARGE_INT = "number"
+
+# Fetch the engine (a git dependency) with the git command line, which
+# works behind the cloud sessions' proxy.
+[net]
+git-fetch-with-cli = true

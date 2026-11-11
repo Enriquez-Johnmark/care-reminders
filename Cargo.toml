@@ -1,0 +1,39 @@
+[package]
+name = "care-reminders"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+license-file = "LICENSE"
+description = "Follow-up care reminders a person approves, on the Nudgewright engine"
+
+[dependencies]
+anyhow = "1.0.104"
+dotenvy = "0.15.7"
+# The engine: draft, approve, send exactly once, track. Pinned to the commit
+# tagged v0.4.5.
+nudgewright = { version = "0.4.5", git = "https://github.com/Enriquez-Johnmark/nudgewright", rev = "2855aa69ecde4b3ffc23ba869c2b4de5e8cd9846" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "postgres", "macros", "migrate", "uuid", "time", "json"] }
+thiserror = "2.0.21"
+time = { version = "0.3.55", features = ["serde", "macros", "parsing", "formatting"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "signal", "time", "net"] }
+uuid = { version = "1.28.0", features = ["v7", "serde"] }
+
+# Line tables are enough for backtraces, and keep test builds small.
+[profile.dev]
+debug = "line-tables-only"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+future_incompatible = { level = "warn", priority = -1 }
+nonstandard_style = { level = "deny", priority = -1 }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+redundant_clone = "deny"
+needless_collect = "deny"

@@ -1,0 +1,31 @@
+# Local development only: Postgres for the app and its tests, Mailpit to catch
+# every email so nothing real is ever sent from a dev machine.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: care_reminders
+      POSTGRES_PASSWORD: care_reminders
+      POSTGRES_DB: care_reminders
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U care_reminders"]
+      interval: 2s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27.11
+    ports:
+      - "127.0.0.1:8025:8025"
+  # A FHIR server on this computer, for the demo of "Fetch from the FHIR server":
+  # `docker compose --profile fhir up -d`, then
+  # `care-reminders load-made-up --url http://localhost:8090/fhir`.
+  hapi:
+    image: hapiproject/hapi:v8.4.0-1
+    profiles: [fhir]
+    ports:
+      - "127.0.0.1:8090:8080"
+volumes:
+  pgdata:
