@@ -129,9 +129,10 @@ fn split_fill_ins(draft: &str, problems: &mut Vec<Problem>) -> (Vec<String>, Str
     (names, plain)
 }
 
-/// Words that name a number, a day, a month or a time. Months are matched
-/// with their capital, so "march" the verb passes; "May" is left out, as the
-/// word is more often "may".
+/// Words that name a number, a day, a month or a time, matched in lower
+/// case in any of a word's forms (see [`forms`]). "May", "Mar", "Sat" and
+/// "Sun" are left out, being more often other words, as are "first" and
+/// "second".
 const NUMBER_WORDS: &[&str] = &[
     "two",
     "three",
@@ -144,11 +145,35 @@ const NUMBER_WORDS: &[&str] = &[
     "ten",
     "eleven",
     "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
     "twenty",
     "thirty",
     "forty",
     "fifty",
+    "sixty",
+    "seventy",
+    "eighty",
+    "ninety",
     "hundred",
+    "thousand",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+    "eleventh",
+    "twelfth",
+    "twentieth",
+    "thirtieth",
     "monday",
     "tuesday",
     "wednesday",
@@ -156,6 +181,36 @@ const NUMBER_WORDS: &[&str] = &[
     "friday",
     "saturday",
     "sunday",
+    "mon",
+    "tue",
+    "tues",
+    "wed",
+    "thu",
+    "thur",
+    "thurs",
+    "fri",
+    "january",
+    "february",
+    "march",
+    "april",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+    "jan",
+    "feb",
+    "apr",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "sept",
+    "oct",
+    "nov",
+    "dec",
     "today",
     "tonight",
     "tomorrow",
@@ -166,31 +221,16 @@ const NUMBER_WORDS: &[&str] = &[
     "a.m",
     "p.m",
 ];
-const MONTHS: &[&str] = &[
-    "January",
-    "February",
-    "March",
-    "April",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-];
 const DATE_PHRASES: &[&str] = &["next week", "this week", "next month", "this month"];
 
 fn numbers_and_dates(plain: &str, problems: &mut Vec<Problem>) {
     let mut found: Vec<String> = Vec::new();
-    if let Some(digit) = plain
-        .split_whitespace()
-        .find(|word| word.chars().any(|c| c.is_ascii_digit()))
-    {
+    // Any script's digits, not only 0 to 9.
+    if let Some(digit) = plain.split_whitespace().find(|word| word.chars().any(char::is_numeric)) {
         found.push(trim(digit).to_owned());
     }
     for word in plain.split_whitespace().map(trim) {
-        if NUMBER_WORDS.contains(&word.to_lowercase().trim_end_matches('.')) || MONTHS.contains(&word) {
+        if forms(word).iter().any(|form| NUMBER_WORDS.contains(&form.as_str())) {
             found.push(word.to_owned());
         }
     }
@@ -303,7 +343,7 @@ fn clinical_words(plain: &str, problems: &mut Vec<Problem>) {
     let mut found: Vec<String> = plain
         .split_whitespace()
         .map(trim)
-        .filter(|word| CLINICAL_WORDS.contains(&word.to_lowercase().as_str()))
+        .filter(|word| forms(word).iter().any(|form| CLINICAL_WORDS.contains(&form.as_str())))
         .map(str::to_owned)
         .collect();
     found.extend(phrases(plain, ADVICE));
@@ -323,6 +363,37 @@ fn phrases(plain: &str, list: &[&str]) -> Vec<String> {
         .filter(|phrase| text.contains(&format!(" {phrase} ")))
         .map(|phrase| (*phrase).to_owned())
         .collect()
+}
+
+/// The forms a word is matched in: lower case, without a possessive, and
+/// each part of a hyphenated word, each also as a singular. So "Tuesday's",
+/// "blood-test", "surgeries" and "x-rays" are found as "tuesday", "blood",
+/// "surgery" and "x-ray".
+fn forms(word: &str) -> Vec<String> {
+    let lower = word.to_lowercase().replace('\u{2019}', "'");
+    let lower = lower
+        .trim_end_matches('.')
+        .trim_end_matches("'s")
+        .trim_end_matches('\'')
+        .to_owned();
+    let mut bases = vec![lower.clone()];
+    if lower.contains('-') {
+        bases.extend(lower.split('-').filter(|part| !part.is_empty()).map(str::to_owned));
+    }
+    let mut all = Vec::new();
+    for base in bases {
+        if let Some(stem) = base.strip_suffix("ies") {
+            all.push(format!("{stem}y"));
+        }
+        if let Some(stem) = base.strip_suffix("es") {
+            all.push(stem.to_owned());
+        }
+        if let Some(stem) = base.strip_suffix('s') {
+            all.push(stem.to_owned());
+        }
+        all.push(base);
+    }
+    all
 }
 
 /// A word without the punctuation around it.

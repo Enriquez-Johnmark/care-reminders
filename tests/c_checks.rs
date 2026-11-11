@@ -143,3 +143,41 @@ fn c7_every_problem_names_its_check_and_what_was_found() {
         "{found:?}"
     );
 }
+
+#[test]
+fn c3_dates_and_numbers_are_found_in_any_case_short_form_or_script() {
+    for own in [
+        "Please come by tomorrow's clinic.",
+        "Take Tuesday's slot.",
+        "Book within twenty-one days.",
+        "Book by JANUARY.",
+        "We'll see you in december.",
+        "Please book by Dec.",
+        "We're open Mon to Fri.",
+        "Come on the fifth.",
+        "Book within fourteen days.",
+        "Call by １５.",
+    ] {
+        let text = format!("{GOOD} {own}");
+        assert_eq!(failed(&text), [Check::NumbersAndDates], "{own}");
+    }
+}
+
+#[test]
+fn c4_clinical_words_are_found_as_plurals_possessives_and_in_hyphenated_words() {
+    for clinical in [
+        "This is about your heart's health.",
+        "It's your blood-test follow-up.",
+        "We'll go over your scans.",
+        "This follows your infections.",
+        "Your mammograms are overdue.",
+        "We track conditions like yours.",
+        "Your treatments can wait.",
+        "Talk to us about surgeries.",
+        "We have your biopsies.",
+        "Bring your x-rays.",
+    ] {
+        let text = format!("{GOOD} {clinical}");
+        assert_eq!(failed(&text), [Check::ClinicalWords], "{clinical}");
+    }
+}
