@@ -1,0 +1,205 @@
+{
+  "note": "Hand-written bad drafts, each with one planted fault; every one must be blocked by the check it trips (I1). Made up.",
+  "drafts": [
+    {
+      "id": "bad-01",
+      "trips": "fill-ins",
+      "text": "Hello {full_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link}"
+    },
+    {
+      "id": "bad-02",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call the front desk to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link}"
+    },
+    {
+      "id": "bad-03",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: our website"
+    },
+    {
+      "id": "bad-04",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {visit_date}. If you'd rather not get these messages, you can stop them here: {opt_out_link}"
+    },
+    {
+      "id": "bad-05",
+      "trips": "fill-ins",
+      "text": "Hello {first_name, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link}"
+    },
+    {
+      "id": "bad-06",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {doctor_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link}"
+    },
+    {
+      "id": "bad-07",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} {reason}"
+    },
+    {
+      "id": "bad-08",
+      "trips": "fill-ins",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link}}"
+    },
+    {
+      "id": "bad-09",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Your visit is on the 3rd."
+    },
+    {
+      "id": "bad-10",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We are open until five."
+    },
+    {
+      "id": "bad-11",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Come in on Tuesday."
+    },
+    {
+      "id": "bad-12",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Please call before December."
+    },
+    {
+      "id": "bad-13",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We can see you tomorrow."
+    },
+    {
+      "id": "bad-14",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Our desk opens at noon."
+    },
+    {
+      "id": "bad-15",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Call us after nine."
+    },
+    {
+      "id": "bad-16",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We have times open next week."
+    },
+    {
+      "id": "bad-17",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Our line is open until midnight."
+    },
+    {
+      "id": "bad-18",
+      "trips": "numbers-and-dates",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We saw you in October."
+    },
+    {
+      "id": "bad-19",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} This is about your cholesterol."
+    },
+    {
+      "id": "bad-20",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We want to go over your test."
+    },
+    {
+      "id": "bad-21",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Your cardiology visit is due."
+    },
+    {
+      "id": "bad-22",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} It's time for your colonoscopy."
+    },
+    {
+      "id": "bad-23",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} This follows your hospital stay."
+    },
+    {
+      "id": "bad-24",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Keep taking your medication until then."
+    },
+    {
+      "id": "bad-25",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} You should rest and drink water."
+    },
+    {
+      "id": "bad-26",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} This is about your chlamydia result."
+    },
+    {
+      "id": "bad-27",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Your mammogram is overdue."
+    },
+    {
+      "id": "bad-28",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} We need to check your blood."
+    },
+    {
+      "id": "bad-29",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Your thyroid needs a look."
+    },
+    {
+      "id": "bad-30",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} This visit is about your diabetes."
+    },
+    {
+      "id": "bad-31",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Please bring your pills with you."
+    },
+    {
+      "id": "bad-32",
+      "trips": "clinical-words",
+      "text": "Hello {first_name}, this is {clinic_name}. It's time to book a follow-up visit with us. Please call {clinic_phone} to pick a time that works for you, by {due_by}. If you'd rather not get these messages, you can stop them here: {opt_out_link} Our oncology team will see you."
+    },
+    {
+      "id": "bad-33",
+      "trips": "reading-level",
+      "text": "Hello {first_name}. Our organisation's comprehensive administrative procedures necessitate considerable documentation regarding appointment availability and institutional responsibilities. Telephone {clinic_phone} by {due_by}. Unsubscribe: {opt_out_link}"
+    },
+    {
+      "id": "bad-34",
+      "trips": "reading-level",
+      "text": "Greetings {first_name}, {clinic_name} respectfully requests that you contemplate arranging an additional consultation at your earliest opportunity, considering availability, transportation and personal obligations, by contacting {clinic_phone} before {due_by}, or alternatively discontinue communications: {opt_out_link}"
+    },
+    {
+      "id": "bad-35",
+      "trips": "reading-level",
+      "text": "Dear {first_name}, notwithstanding previous correspondence, {clinic_name} reiterates the importance of scheduling a subsequent consultation, which facilitates continuity and comprehensive coordination. Contact {clinic_phone} by {due_by}. Discontinue: {opt_out_link}"
+    },
+    {
+      "id": "bad-36",
+      "trips": "reading-level",
+      "text": "{first_name}, {clinic_name} anticipates your cooperation in coordinating an appropriate consultation, considering organisational availability, administrative requirements and individual circumstances, telephoning {clinic_phone} prior to {due_by}. Communication preferences: {opt_out_link}"
+    },
+    {
+      "id": "bad-37",
+      "trips": "reading-level",
+      "text": "Dear {first_name}, in accordance with established organisational protocols, {clinic_name} encourages the prompt arrangement of an additional consultation, facilitating uninterrupted, comprehensive continuity. Telephone {clinic_phone} before {due_by}. Preferences: {opt_out_link}"
+    },
+    {
+      "id": "bad-38",
+      "trips": "reading-level",
+      "text": "Hello {first_name}. Considering institutional availability, {clinic_name} recommends immediately arranging another consultation, accommodating personal responsibilities and administrative considerations, through {clinic_phone} before {due_by}. Unsubscribe: {opt_out_link}"
+    },
+    {
+      "id": "bad-39",
+      "trips": "reading-level",
+      "text": "{first_name}, {clinic_name} acknowledges that arranging consultations occasionally necessitates considerable organisational flexibility; nevertheless, we appreciate communication through {clinic_phone} preceding {due_by}. Discontinue notifications: {opt_out_link}"
+    },
+    {
+      "id": "bad-40",
+      "trips": "reading-level",
+      "text": "Dear {first_name}, {clinic_name}'s administrative representatives respectfully emphasize the significance of arranging consultations expeditiously, acknowledging individual commitments, transportation difficulties and availability. Telephone {clinic_phone} by {due_by}. Unsubscribe: {opt_out_link}"
+    }
+  ]
+}
