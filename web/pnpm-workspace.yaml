@@ -1,0 +1,8 @@
+packages: []
+
+# Only versions published at least a week ago are installed, so a
+# hijacked release has time to be caught before it reaches us.
+minimumReleaseAge: 10080
+
+onlyBuiltDependencies:
+  - esbuild

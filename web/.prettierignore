@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+src/api/generated/
+src/styles/shadcn.css
