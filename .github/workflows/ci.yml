@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: care_reminders
+          POSTGRES_PASSWORD: care_reminders
+          POSTGRES_DB: care_reminders
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U care_reminders"
+          --health-interval 2s
+          --health-retries 30
+      # A real FHIR server for the round-trip test; the test waits for it.
+      hapi:
+        image: hapiproject/hapi:v8.4.0-1
+        ports:
+          - 8090:8080
+    env:
+      DATABASE_URL: postgres://care_reminders:care_reminders@localhost:5432/care_reminders
+      # Compile SQL checks from the committed .sqlx/ data; tests still run
+      # against the real Postgres service.
+      SQLX_OFFLINE: "true"
+      HAPI_FHIR_URL: http://localhost:8090/fhir
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.151
+      - name: Format
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - name: Test
+        run: cargo nextest run --all-features --locked --profile ci
+      # Fails the build when a finished milestone's criterion has no passing
+      # test (docs/architecture.md). Runs after failed tests too, to show
+      # them, but not when the tests never ran.
+      - name: Evidence pack
+        if: ${{ !cancelled() && hashFiles('target/nextest/ci/junit.xml') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          signed=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}" --jq .commit.verification.verified || echo unknown)
+          cargo run --locked --quiet -- evidence --commit "${{ github.sha }}" --signed "$signed"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && hashFiles('target/evidence/index.html') != '' }}
+        with:
