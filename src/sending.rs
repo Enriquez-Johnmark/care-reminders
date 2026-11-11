@@ -426,3 +426,125 @@ pub async fn opt_out(
         done: true,
     }))
 }
+
+/// What became of an inbound email.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Received {
+    /// A patient's reply: stored, and its follow-up stopped (F2).
+    Reply(FollowUpId),
+    /// Sent automatically (an out-of-office reply): ignored.
+    Automatic,
+    /// Already received once.
+    Again,
+    /// Addressed to no reminder's reply code, or a changed one.
+    Unknown,
+}
+
+/// Takes in an inbound email, which is untrusted: only a reply code that
+/// verifies finds a follow-up, and before that no clinic is known (the one
+/// lookup not scoped by a clinic).
+pub async fn receive(
+    pool: &PgPool,
+    clock: Arc<dyn Clock>,
+    sending: &Sending,
+    email: &crate::engine::inbound::InboundEmail,
+) -> Result<Received, OutboxError> {
+    let Some(follow_up) = email.recipients.iter().find_map(|to| sending.reply_of(to)) else {
+        return Ok(Received::Unknown);
+    };
+    if email.automatic {
+        return Ok(Received::Automatic);
+    }
+    let Some(clinic) = sqlx::query_scalar!("select tenant_id from follow_ups where id = $1", follow_up.as_uuid())
+        .fetch_optional(pool)
+        .await?
+        .map(TenantId::from)
+    else {
+        return Ok(Received::Unknown);
+    };
+    let now = clock.now();
+    let mut tx = pool.begin().await?;
+    let reply = uuid::Uuid::now_v7();
+    let stored = sqlx::query!(
+        "insert into replies (id, tenant_id, follow_up_id, email_key, from_address, text, received_at)
+         values ($1, $2, $3, $4, $5, $6, $7) on conflict (tenant_id, email_key) do nothing",
+        reply,
+        clinic.as_uuid(),
+        follow_up.as_uuid(),
+        email.key,
+        email.from,
+        email.text.trim(),
+        now,
+    )
+    .execute(&mut *tx)
+    .await?;
+    if stored.rows_affected() == 0 {
+        return Ok(Received::Again);
+    }
+    let stopped = sqlx::query!(
+        "update follow_ups set stopped_at = $3, stop = 'replied'
+         where tenant_id = $1 and id = $2 and stopped_at is null",
+        clinic.as_uuid(),
+        follow_up.as_uuid(),
+        now,
+    )
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    let event = AuditEvent {
+        tenant: clinic,
+        at: now,
+        actor: "patient",
+        action: "follow_up.replied",
+        subject_type: "follow_up",
+        subject_id: follow_up.as_uuid(),
+        details: json!({ "reply": reply, "stopped": stopped == 1 }),
+    };
+    audit::record(&mut *tx, &event).await?;
+    tx.commit().await?;
+    withdraw_stopped(pool, clock, clinic, "patient").await?;
+    Ok(Received::Reply(follow_up))
+}
+
+/// One reply, as the coordinator sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reply {
+    /// The reply.
+    pub id: uuid::Uuid,
+    /// Its follow-up.
+    pub follow_up: uuid::Uuid,
+    /// The patient.
+    pub patient_name: String,
+    /// Who it came from.
+    pub from_address: String,
+    /// What they wrote, as text: never rendered as HTML.
+    pub text: String,
+    /// When it arrived.
+    pub received_at: OffsetDateTime,
+}
+
+/// `clinic`'s replies, newest first.
+pub async fn replies(pool: &PgPool, clinic: TenantId) -> Result<Vec<Reply>, sqlx::Error> {
+    let rows = sqlx::query!(
+        "select r.id, r.follow_up_id, p.name, r.from_address, r.text, r.received_at
+         from replies r
+         join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id
+         join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id
+         where r.tenant_id = $1
+         order by r.received_at desc, r.id desc",
+        clinic.as_uuid(),
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| Reply {
+            id: row.id,
+            follow_up: row.follow_up_id,
+            patient_name: row.name,
+            from_address: row.from_address,
+            text: row.text,
+            received_at: row.received_at,
+        })
+        .collect())
+}

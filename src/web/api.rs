@@ -44,6 +44,7 @@ pub(super) fn routes() -> Router<AppState> {
         .route("/api/reminders/{id}/redraft", post(redraft))
         .route("/api/reminders/{id}/skip", post(skip))
         .route("/api/follow-ups/{id}/timeline", get(timeline))
+        .route("/api/replies", get(replies))
         .route("/api/activity", get(activity))
         .route("/api/fhir-server/fetch", post(fetch_from_fhir_server))
         .route("/api/{*rest}", any(not_found))
@@ -762,4 +763,43 @@ async fn fetch_from_fhir_server(
         follow_ups_chosen: outcome.follow_ups_chosen,
         follow_ups_booked: outcome.follow_ups_booked,
     }))
+}
+
+/// One patient's reply (F2).
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub struct ReplyView {
+    /// The reply.
+    pub id: String,
+    /// Its follow-up, whose reminders it stopped.
+    pub follow_up: String,
+    /// The patient.
+    pub patient_name: String,
+    /// The address it came from.
+    pub from_address: String,
+    /// What they wrote: untrusted text, shown as text only.
+    pub text: String,
+    /// When it arrived.
+    pub received_at: String,
+}
+
+/// The clinic's replies, newest first.
+async fn replies(
+    State(state): State<AppState>,
+    ApiMember(member): ApiMember,
+) -> Result<Json<Vec<ReplyView>>, ApiError> {
+    let replies = crate::sending::replies(&state.pool, member.tenant).await?;
+    Ok(Json(
+        replies
+            .into_iter()
+            .map(|reply| ReplyView {
+                id: reply.id.to_string(),
+                follow_up: reply.follow_up.to_string(),
+                patient_name: reply.patient_name,
+                from_address: reply.from_address,
+                text: reply.text,
+                received_at: time_text(reply.received_at),
+            })
+            .collect(),
+    ))
 }

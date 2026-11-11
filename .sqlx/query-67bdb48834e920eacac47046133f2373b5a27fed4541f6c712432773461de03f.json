@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into replies (id, tenant_id, follow_up_id, email_key, from_address, text, received_at)\n         values ($1, $2, $3, $4, $5, $6, $7) on conflict (tenant_id, email_key) do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67bdb48834e920eacac47046133f2373b5a27fed4541f6c712432773461de03f"
+}

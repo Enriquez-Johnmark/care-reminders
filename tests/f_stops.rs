@@ -148,3 +148,61 @@ async fn f4_a_changed_link_or_another_links_code_is_refused(pool: PgPool) {
     assert_eq!(stop_of(&s.pool, result).await, None);
     assert_eq!(s.count("select count(*) from opt_outs").await, 0);
 }
+
+/// A reply from Ana to `to`, as her mail program would send it.
+fn anas_reply(to: &str, automatic: bool, id: &str) -> String {
+    let auto = if automatic {
+        "Auto-Submitted: auto-replied\r\n"
+    } else {
+        ""
+    };
+    format!(
+        "From: Ana Example <ana@example.test>\r\nTo: {to}\r\nSubject: Re: A message from Example Family Practice\r\n\
+         Message-ID: <{id}@example.test>\r\n{auto}Content-Type: text/plain\r\n\r\nThanks, I'll call on Monday.\r\n"
+    )
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f2_a_reply_stops_the_follow_up_and_is_shown_to_the_coordinator(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, screening) = anas_follow_ups(&s.pool).await;
+    let to = common::sending().reply_to(result.into());
+    let app = common::app(&s.pool, s.clock.clone());
+
+    let first = common::post_inbound(&app, &anas_reply(&to, false, "r1"), common::INBOUND_SECRET).await;
+    let again = common::post_inbound(&app, &anas_reply(&to, false, "r1"), common::INBOUND_SECRET).await;
+    let cookie = common::log_in(&app, &s.pool, "carla@family.test").await;
+    let shown = common::call(&app, "GET", "/api/replies", None, Some(&cookie)).await;
+
+    assert_eq!((first, again), (204, 204));
+    assert_eq!(stop_of(&s.pool, result).await.as_deref(), Some("replied"));
+    assert_eq!(
+        stop_of(&s.pool, screening).await,
+        None,
+        "only the reminder replied to stops"
+    );
+    let replies = shown.body.as_array().unwrap();
+    assert_eq!(replies.len(), 1, "a redelivered email is stored once");
+    assert_eq!(replies[0]["text"], "Thanks, I'll call on Monday.");
+    assert_eq!(replies[0]["follow_up"], result.to_string());
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn f2_an_automatic_reply_a_changed_code_or_an_unsigned_post_stops_nothing(pool: PgPool) {
+    let s = setup(pool).await;
+    let (result, _) = anas_follow_ups(&s.pool).await;
+    let to = common::sending().reply_to(result.into());
+    // One digit of the code changed.
+    let mut changed = to.clone().into_bytes();
+    changed[9] = if changed[9] == b'0' { b'1' } else { b'0' };
+    let changed = String::from_utf8(changed).unwrap();
+    let app = common::app(&s.pool, s.clock.clone());
+
+    let automatic = common::post_inbound(&app, &anas_reply(&to, true, "a1"), common::INBOUND_SECRET).await;
+    let wrong_code = common::post_inbound(&app, &anas_reply(&changed, false, "c1"), common::INBOUND_SECRET).await;
+    let unsigned = common::post_inbound(&app, &anas_reply(&to, false, "u1"), "not-the-secret").await;
+
+    assert_eq!((automatic, wrong_code, unsigned), (204, 204, 401));
+    assert_eq!(stop_of(&s.pool, result).await, None);
+    assert_eq!(s.count("select count(*) from replies").await, 0);
+}

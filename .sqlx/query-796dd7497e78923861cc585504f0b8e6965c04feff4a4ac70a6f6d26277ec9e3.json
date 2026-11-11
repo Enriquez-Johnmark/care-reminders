@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select r.id, r.follow_up_id, p.name, r.from_address, r.text, r.received_at\n         from replies r\n         join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n         join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n         where r.tenant_id = $1\n         order by r.received_at desc, r.id desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "replies",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "follow_up_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "replies",
+            "name": "follow_up_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "from_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "replies",
+            "name": "from_address"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "replies",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "received_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "replies",
+            "name": "received_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "796dd7497e78923861cc585504f0b8e6965c04feff4a4ac70a6f6d26277ec9e3"
+}

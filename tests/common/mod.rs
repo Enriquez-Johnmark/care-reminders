@@ -96,7 +96,8 @@ pub const BASE_URL: &str = "http://reminders.example.test";
 
 /// The web app on `pool`, drafting with `model` when asked for a new draft.
 pub fn app(pool: &PgPool, clock: Arc<FixedClock>) -> axum::Router {
-    let state = care_reminders::web::AppState::new(pool.clone(), clock, BASE_URL, sending());
+    let state = care_reminders::web::AppState::new(pool.clone(), clock, BASE_URL, sending())
+        .with_inbound_secret(INBOUND_SECRET);
     care_reminders::web::router(state)
 }
 
@@ -192,4 +193,28 @@ pub async fn fetch(app: &axum::Router, method: &str, path: &str) -> (u16, String
     let status = response.status().as_u16();
     let bytes = axum::body::to_bytes(response.into_body(), 1 << 20).await.unwrap();
     (status, String::from_utf8(bytes.to_vec()).unwrap())
+}
+
+/// The test inbound provider's signing secret.
+pub const INBOUND_SECRET: &str = "test-inbound-secret";
+
+/// Posts `raw` to the reply webhook, signed with `secret`; the status.
+pub async fn post_inbound(app: &axum::Router, raw: &str, secret: &str) -> u16 {
+    use hmac::{Hmac, KeyInit, Mac};
+    use tower::ServiceExt;
+    let signature: String = <Hmac<sha2::Sha256> as KeyInit>::new_from_slice(secret.as_bytes())
+        .unwrap()
+        .chain_update(raw.as_bytes())
+        .finalize()
+        .into_bytes()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let request = axum::http::Request::builder()
+        .method("POST")
+        .uri("/hooks/inbound-email")
+        .header("x-care-reminders-signature", signature)
+        .body(axum::body::Body::from(raw.to_owned()))
+        .unwrap();
+    app.clone().oneshot(request).await.unwrap().status().as_u16()
 }

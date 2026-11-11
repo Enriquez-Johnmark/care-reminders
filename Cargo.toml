@@ -40,6 +40,7 @@ name = "e2_crash"
 required-features = ["failpoints"]
 
 [dev-dependencies]
+hmac = "0.13.0"
 tempfile = "3.27.0"
 tower = { version = "0.5.3", features = ["util"] }
 # TypeScript types for the React app, exported by `cargo test`.

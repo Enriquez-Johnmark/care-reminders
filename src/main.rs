@@ -278,6 +278,12 @@ async fn serve(recorded: bool) -> anyhow::Result<()> {
     if let Some(model) = choose_model(recorded)? {
         state = state.with_model(model);
     }
+    if let Some(secret) = std::env::var("INBOUND_SECRET")
+        .ok()
+        .filter(|secret| !secret.trim().is_empty())
+    {
+        state = state.with_inbound_secret(&secret);
+    }
     if let Ok(dir) = std::env::var("WEB_DIR") {
         state = state.with_web_dir(std::path::Path::new(&dir));
     }

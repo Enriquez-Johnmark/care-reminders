@@ -9,6 +9,7 @@
 //!   cross-site posts.
 
 mod api;
+mod hooks;
 mod opt_out;
 mod spa;
 
@@ -40,6 +41,9 @@ pub struct AppState {
     clock: Arc<dyn Clock>,
     logins: Logins,
     reviews: Reviews,
+    /// The inbound provider's signing secret (`INBOUND_SECRET`); without
+    /// it, the reply webhook doesn't exist.
+    inbound_secret: Option<Arc<String>>,
     /// Signs and reads the reminders' links.
     sending: crate::sending::Sending,
     /// The model a coordinator's "new draft" asks; the template without one.
@@ -68,6 +72,7 @@ impl AppState {
             logins: Logins::new(pool.clone(), clock.clone()),
             reviews: Reviews::new(pool.clone(), clock.clone()).with_sending(sending.clone()),
             sending,
+            inbound_secret: None,
             model: None,
             secure_cookies: base_url.starts_with("https://"),
             wake_sender: Arc::new(Notify::new()),
@@ -77,6 +82,13 @@ impl AppState {
             base_url,
             origin,
         }
+    }
+
+    /// Takes replies on the webhook, signed with `secret`.
+    #[must_use]
+    pub fn with_inbound_secret(mut self, secret: &str) -> Self {
+        self.inbound_secret = Some(Arc::new(secret.to_owned()));
+        self
     }
 
     /// Asks `model` for a coordinator's new drafts.
@@ -107,6 +119,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .merge(api::routes())
         .merge(opt_out::routes())
+        .merge(hooks::routes())
         .route("/health", get(health))
         .fallback(spa::app)
         .layer(middleware::from_fn_with_state(state.clone(), same_origin_posts))
@@ -151,7 +164,8 @@ async fn health(State(state): State<AppState>) -> Response {
 
 /// Refuses changes whose `Origin` isn't our own.
 async fn same_origin_posts(State(state): State<AppState>, request: Request, next: Next) -> Response {
-    let safe = matches!(*request.method(), Method::GET | Method::HEAD);
+    // Machine endpoints prove where they came from with a signature instead.
+    let safe = matches!(*request.method(), Method::GET | Method::HEAD) || request.uri().path().starts_with("/hooks/");
     let ours = request
         .headers()
         .get(header::ORIGIN)

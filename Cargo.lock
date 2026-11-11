@@ -231,6 +231,7 @@ dependencies = [
  "axum",
  "dotenvy",
  "hex",
+ "hmac",
  "jiff",
  "nudgewright",
  "quick-xml",
