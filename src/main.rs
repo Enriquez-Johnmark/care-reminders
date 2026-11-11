@@ -7,7 +7,8 @@ use anyhow::Context;
 use care_reminders::engine::accounts::Accounts;
 use care_reminders::engine::clock::SystemClock;
 
-const USAGE: &str = "usage: care-reminders migrate | clinic add --name NAME --email EMAIL";
+const USAGE: &str = "usage: care-reminders migrate | clinic add --name NAME --email EMAIL | \
+                     evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
     let result = tokio::runtime::Builder::new_multi_thread()
@@ -44,6 +45,7 @@ async fn run() -> anyhow::Result<()> {
             println!("{clinic}");
             Ok(())
         }
+        Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),
     }
 }
@@ -60,4 +62,29 @@ fn option<'a>(args: &'a [String], name: &str) -> anyhow::Result<&'a str> {
         .and_then(|at| args.get(at + 1))
         .map(String::as_str)
         .with_context(|| format!("{name} is missing"))
+}
+
+/// Writes the evidence pack and fails if a finished milestone has a gap (J1).
+fn evidence(args: &[String]) -> anyhow::Result<()> {
+    let read = |path: &str| std::fs::read_to_string(path).with_context(|| format!("reading {path}"));
+    let junit = option(args, "--junit").unwrap_or("target/nextest/ci/junit.xml");
+    let out = std::path::Path::new(option(args, "--out").unwrap_or("target/evidence/index.html"));
+    let signed = match option(args, "--signed").ok() {
+        Some("true") => Some(true),
+        Some("false") => Some(false),
+        _ => None,
+    };
+    let evidence = care_reminders::evidence::Evidence::build(
+        &read("docs/product/spec.md")?,
+        &read("docs/architecture.md")?,
+        &read(junit)?,
+    )?;
+    if let Some(dir) = out.parent() {
+        std::fs::create_dir_all(dir).context("creating the evidence folder")?;
+    }
+    std::fs::write(out, evidence.html(option(args, "--commit")?, signed)).context("writing the evidence page")?;
+    println!("wrote {}", out.display());
+    let gaps = evidence.gaps();
+    anyhow::ensure!(gaps.is_empty(), "{} gap(s):\n{}", gaps.len(), gaps.join("\n"));
+    Ok(())
 }

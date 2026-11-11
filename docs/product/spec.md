@@ -1,6 +1,6 @@
 # Spec: Care Reminders
 
-Decided round by round with the owner; the single source for spec decisions. The brief is `brief.md`. Status: **complete** (Rounds 1–3 decided 2026-11-11), with 42 acceptance criteria.
+Decided round by round with the owner; the single source for spec decisions. The brief is `brief.md`. Status: **complete** (Rounds 1–3 decided 2026-11-11), with 43 acceptance criteria.
 
 ## Words
 

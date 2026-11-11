@@ -159,6 +159,7 @@ dependencies = [
  "anyhow",
  "dotenvy",
  "nudgewright",
+ "quick-xml",
  "serde",
  "serde_json",
  "sqlx",

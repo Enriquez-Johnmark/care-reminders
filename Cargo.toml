@@ -13,6 +13,7 @@ dotenvy = "0.15.7"
 # The engine: draft, approve, send exactly once, track. Pinned to the commit
 # tagged v0.4.5.
 nudgewright = { version = "0.4.5", git = "https://github.com/Enriquez-Johnmark/nudgewright", rev = "2855aa69ecde4b3ffc23ba869c2b4de5e8cd9846" }
+quick-xml = "0.42.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "postgres", "macros", "migrate", "uuid", "time", "json"] }

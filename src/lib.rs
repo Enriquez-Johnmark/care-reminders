@@ -3,6 +3,9 @@
 //! checks it, a person approves the exact text, the engine sends it once,
 //! and every step is audited.
 
+pub mod evidence;
+pub mod html;
+
 /// The engine, Nudgewright, pinned to a release.
 pub use nudgewright as engine;
 
