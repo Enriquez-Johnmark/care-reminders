@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update reminders set finished_at = $3, outcome = 'contact-another-way' where tenant_id = $1 and id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "609d7184d601bc5457ff7e55d88f57da46f005891290ca8c2c4f6d265b578581"
+}

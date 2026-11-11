@@ -94,7 +94,7 @@ pub const BASE_URL: &str = "http://reminders.example.test";
 
 /// The web app on `pool`, drafting with `model` when asked for a new draft.
 pub fn app(pool: &PgPool, clock: Arc<FixedClock>) -> axum::Router {
-    let state = care_reminders::web::AppState::new(pool.clone(), clock, BASE_URL);
+    let state = care_reminders::web::AppState::new(pool.clone(), clock, BASE_URL, sending());
     care_reminders::web::router(state)
 }
 
@@ -165,4 +165,14 @@ pub async fn log_in(app: &axum::Router, pool: &PgPool, email: &str) -> String {
         .await
         .cookie
         .unwrap()
+}
+
+/// A test signing key, never used anywhere real.
+pub fn master() -> care_reminders::engine::files::MasterKey {
+    care_reminders::engine::files::MasterKey::from_hex(&"ab".repeat(32)).unwrap()
+}
+
+/// Reminder links signed with the test key, under [`BASE_URL`].
+pub fn sending() -> care_reminders::sending::Sending {
+    care_reminders::sending::Sending::new(&master(), BASE_URL, "replies.example.test")
 }

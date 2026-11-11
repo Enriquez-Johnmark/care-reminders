@@ -34,7 +34,7 @@ async fn setup(pool: PgPool, model: &'static str) -> Setup {
     care_reminders::settings::set_phone(&pool, family, "(555) 010-0100")
         .await
         .unwrap();
-    let reviews = Reviews::new(pool.clone(), clock);
+    let reviews = Reviews::new(pool.clone(), clock).with_sending(common::sending());
     let member = reviews
         .add_coordinator(family, "carla@family.test", "Carla Reyes", "admin@family.test")
         .await

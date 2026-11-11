@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select o.first_send_at as \"first_send_at!\"\n             from reminder_messages m\n             join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             where m.tenant_id = $1 and f.patient_id = $2 and m.message_id <> $3\n               and o.first_send_at is not null and o.first_send_at > $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first_send_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "outbox_messages",
+            "name": "first_send_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a46f7df86f8ee35349d3d8f26544b319eebe50ca1277b43cc447a1a8a1cd1143"
+}

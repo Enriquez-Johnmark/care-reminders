@@ -15,9 +15,12 @@ use crate::engine::accounts::{MemberError, MemberId, Members, Session};
 use crate::engine::audit::{self, AuditEvent};
 use crate::engine::clock::Clock;
 use crate::engine::llm::LanguageModel;
+use crate::engine::mail::Email;
+use crate::engine::outbox::Outbox;
 use crate::fhir::Kind;
 use crate::records::ClinicId;
 use crate::reminders::{DraftId, NewDraft, ReminderId, add_draft, write_draft};
+use crate::sending::{Sending, SendingRules, release};
 
 /// Most new drafts a coordinator may ask the model for, after the first
 /// draft (D5).
@@ -57,6 +60,12 @@ pub enum ReviewError {
     /// A skip needs a reason (D6).
     #[error("say why the reminder is skipped")]
     NoReason,
+    /// This server can't send reminders: it has no signing key.
+    #[error("sending isn't set up on this server")]
+    NoSending,
+    /// The outbox failed.
+    #[error(transparent)]
+    Outbox(#[from] crate::engine::outbox::OutboxError),
     /// No such reminder or draft in this clinic.
     #[error("not found")]
     NotFound,
@@ -99,7 +108,10 @@ pub fn content_hash(text: &str) -> String {
 
 /// What a review step needs to know about a reminder.
 struct Current {
+    follow_up: uuid::Uuid,
     follow_up_kind: String,
+    email: Option<String>,
+    no_email: bool,
     stopped: bool,
     given_name: String,
     due_by: time::Date,
@@ -116,12 +128,24 @@ struct Current {
 pub struct Reviews {
     pool: PgPool,
     clock: Arc<dyn Clock>,
+    sending: Option<Sending>,
 }
 
 impl Reviews {
     /// Reviews in `pool`.
     pub fn new(pool: PgPool, clock: Arc<dyn Clock>) -> Self {
-        Self { pool, clock }
+        Self {
+            pool,
+            clock,
+            sending: None,
+        }
+    }
+
+    /// Sends approved reminders with `sending`'s signed links.
+    #[must_use]
+    pub fn with_sending(mut self, sending: Sending) -> Self {
+        self.sending = Some(sending);
+        self
     }
 
     /// Adds a care coordinator to the clinic, as a staff member who may
@@ -178,7 +202,7 @@ impl Reviews {
         reminder: ReminderId,
     ) -> Result<Current, ReviewError> {
         let row = sqlx::query!(
-            "select f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,
+            "select f.id as follow_up, p.email, p.no_email, f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,
                     r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,
                     jsonb_array_length(d.problems) > 0 as \"blocked!\"
              from reminders r
@@ -195,7 +219,10 @@ impl Reviews {
         .await?
         .ok_or(ReviewError::NotFound)?;
         let current = Current {
+            follow_up: row.follow_up,
             follow_up_kind: row.kind,
+            email: row.email,
+            no_email: row.no_email,
             stopped: row.stopped,
             given_name: row.given_name,
             due_by: row.due_by,
@@ -233,6 +260,8 @@ impl Reviews {
         if current.blocked {
             return Err(ReviewError::Blocked);
         }
+        let sending = self.sending.as_ref().ok_or(ReviewError::NoSending)?;
+        let follow_up = crate::follow_ups::FollowUpId::from(current.follow_up);
         // Approving only what could be sent: every fill-in has a value.
         let account = crate::engine::accounts::Accounts::new(self.pool.clone(), self.clock.clone())
             .get(who.tenant)
@@ -244,9 +273,11 @@ impl Reviews {
             clinic_name: account.name,
             clinic_phone: settings.phone,
             due_by: current.due_by,
-            opt_out_link: "the opt-out link".to_owned(),
+            opt_out_link: sending.opt_out_link(follow_up),
         };
-        crate::drafting::fill(&current.text, &values).map_err(|err| ReviewError::CantFill(err.to_string()))?;
+        let body =
+            crate::drafting::fill(&current.text, &values).map_err(|err| ReviewError::CantFill(err.to_string()))?;
+        let clinic_name = values.clinic_name;
         let now = self.clock.now();
         sqlx::query!(
             "insert into approvals (draft_id, tenant_id, reminder_id, content_hash, approved_by, approved_at)
@@ -269,7 +300,66 @@ impl Reviews {
             json!({ "draft": draft, "content_hash": hash }),
         )
         .await?;
+        let address = current.email.filter(|_| !current.no_email);
+        let Some(address) = address else {
+            // E5: never emailed; the coordinator contacts the patient another way.
+            sqlx::query!(
+                "update reminders set finished_at = $3, outcome = 'contact-another-way' where tenant_id = $1 and id = $2",
+                who.tenant.as_uuid(),
+                reminder.as_uuid(),
+                now,
+            )
+            .execute(&mut *tx)
+            .await?;
+            log(
+                &mut tx,
+                who,
+                now,
+                "reminder.not_emailed",
+                reminder,
+                json!({ "draft": draft }),
+            )
+            .await?;
+            tx.commit().await?;
+            return Ok(());
+        };
+        let already = sqlx::query_scalar!(
+            "select message_id from reminder_messages where tenant_id = $1 and draft_id = $2",
+            who.tenant.as_uuid(),
+            draft.as_uuid(),
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if already.is_some() {
+            return Ok(());
+        }
+        // ADR 0001: the email is stored with the approval, and released to
+        // the outbox once both are committed (or by the worker's sweep).
+        let outbox = Outbox::new(self.pool.clone(), self.clock.clone());
+        let email = Email {
+            to_address: address,
+            from_name: clinic_name.clone(),
+            reply_to: Some(sending.reply_to(follow_up)),
+            subject: format!("A message from {clinic_name}"),
+            body_text: body,
+        };
+        let message = outbox.create_draft_in(&mut tx, who.tenant, &email, None).await?;
+        sqlx::query!(
+            "insert into reminder_messages (message_id, tenant_id, reminder_id, draft_id, created_at)
+             values ($1, $2, $3, $4, $5)",
+            message.as_uuid(),
+            who.tenant.as_uuid(),
+            reminder.as_uuid(),
+            draft.as_uuid(),
+            now,
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
+        let rules = SendingRules::new(self.pool.clone(), self.clock.clone());
+        if let Err(err) = release(&outbox, &rules, who.tenant, message, &who.email).await {
+            tracing::warn!(%err, %message, "an approved reminder waits for the next sweep");
+        }
         Ok(())
     }
 

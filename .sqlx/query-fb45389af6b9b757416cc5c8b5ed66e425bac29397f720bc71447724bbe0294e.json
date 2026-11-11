@@ -1,10 +1,43 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,\n                    r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,\n                    jsonb_array_length(d.problems) > 0 as \"blocked!\"\n             from reminders r\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1 and r.id = $2\n             order by d.attempt desc limit 1\n             for update of r",
+  "query": "select f.id as follow_up, p.email, p.no_email, f.kind, f.stopped_at is not null as \"stopped!\", f.due_by, p.given_name,\n                    r.number, r.finished_at is not null as \"finished!\", d.id as draft, d.attempt, d.text,\n                    jsonb_array_length(d.problems) > 0 as \"blocked!\"\n             from reminders r\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1 and r.id = $2\n             order by d.attempt desc limit 1\n             for update of r",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "follow_up",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "no_email",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "no_email"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "kind",
         "type_info": "Text",
         "origin": {
@@ -15,13 +48,13 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 4,
         "name": "stopped!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 2,
+        "ordinal": 5,
         "name": "due_by",
         "type_info": "Date",
         "origin": {
@@ -32,7 +65,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 6,
         "name": "given_name",
         "type_info": "Text",
         "origin": {
@@ -43,7 +76,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 7,
         "name": "number",
         "type_info": "Int2",
         "origin": {
@@ -54,13 +87,13 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 8,
         "name": "finished!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 6,
+        "ordinal": 9,
         "name": "draft",
         "type_info": "Uuid",
         "origin": {
@@ -71,7 +104,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 10,
         "name": "attempt",
         "type_info": "Int4",
         "origin": {
@@ -82,7 +115,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 11,
         "name": "text",
         "type_info": "Text",
         "origin": {
@@ -93,7 +126,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 12,
         "name": "blocked!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -107,6 +140,9 @@
     },
     "nullable": [
       false,
+      true,
+      false,
+      false,
       null,
       false,
       false,
@@ -118,5 +154,5 @@
       null
     ]
   },
-  "hash": "42876768068bfeadb08c1c38328de465be2fff64601b8a7cb942f585ed5596cf"
+  "hash": "fb45389af6b9b757416cc5c8b5ed66e425bac29397f720bc71447724bbe0294e"
 }

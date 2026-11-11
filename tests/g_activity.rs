@@ -25,7 +25,7 @@ async fn reviewed(pool: &PgPool) -> (Session, Vec<care_reminders::reminders::Lat
     care_reminders::settings::set_phone(pool, family, "(555) 010-0100")
         .await
         .unwrap();
-    let reviews = Reviews::new(pool.clone(), clock);
+    let reviews = Reviews::new(pool.clone(), clock).with_sending(common::sending());
     let member = reviews
         .add_coordinator(family, "carla@family.test", "Carla Reyes", "admin@family.test")
         .await
@@ -131,8 +131,9 @@ async fn g3_the_clinic_wide_log_filters_by_person_and_by_step(pool: PgPool) {
         .await
         .unwrap();
 
-    // Approved, edited (also logged as her draft) and skipped.
-    assert_eq!(by_carla.len(), 4, "{by_carla:?}");
+    // Approved (also logged as the outbox's approval of its email), edited
+    // (also logged as her draft) and skipped.
+    assert_eq!(by_carla.len(), 5, "{by_carla:?}");
     assert!(by_carla.iter().all(|e| e.actor == "carla@family.test"));
     assert_eq!(skips.len(), 1);
     assert_eq!(skips[0].details["reason"], "Called instead");

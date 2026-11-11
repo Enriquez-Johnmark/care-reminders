@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select f.stopped_at is not null as \"stopped!\", p.id as patient, p.no_email, p.email, p.not_current,\n                    d.text, a.content_hash as \"approved_hash?\",\n                    d.attempt = (select max(attempt) from drafts\n                                 where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",\n                    coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"\n             from reminder_messages m\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = m.tenant_id and d.id = m.draft_id\n             left join approvals a on a.tenant_id = m.tenant_id and a.draft_id = m.draft_id\n             left join clinic_settings s on s.tenant_id = m.tenant_id\n             where m.tenant_id = $1 and m.message_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stopped!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "patient",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "no_email",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "no_email"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "not_current",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "not_current"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "approved_hash?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "approvals",
+            "name": "content_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "latest!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "time_zone!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "b465f1d3638242fba1035506f5460bc91d2be7630a44452f2db282ab2236a849"
+}

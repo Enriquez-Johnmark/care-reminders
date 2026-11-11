@@ -249,7 +249,8 @@ const TICK: std::time::Duration = std::time::Duration::from_secs(15);
 /// 127.0.0.1:3000 and email caught by Mailpit.
 async fn serve(recorded: bool) -> anyhow::Result<()> {
     use care_reminders::engine::mail::MailpitMailer;
-    use care_reminders::engine::outbox::{NoExtraChecks, Sender};
+    use care_reminders::engine::outbox::Sender;
+    use care_reminders::sending::{Sending, SendingRules, finish};
     use care_reminders::web::{AppState, router};
 
     tracing_subscriber::fmt()
@@ -265,7 +266,14 @@ async fn serve(recorded: bool) -> anyhow::Result<()> {
         .context("running migrations")?;
     let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
 
-    let mut state = AppState::new(pool.clone(), clock.clone(), &base_url);
+    let master = care_reminders::engine::files::MasterKey::from_hex(
+        &std::env::var("MASTER_KEY")
+            .context("MASTER_KEY is not set: it signs the reminders' links (see .env.example)")?,
+    )
+    .context("MASTER_KEY is not 64 hex digits")?;
+    let reply_domain = setting("REPLY_DOMAIN", "replies.example-family-practice.test");
+    let sending = Sending::new(&master, &base_url, &reply_domain);
+    let mut state = AppState::new(pool.clone(), clock.clone(), &base_url, sending);
     if let Some(model) = choose_model(recorded)? {
         state = state.with_model(model);
     }
@@ -278,11 +286,20 @@ async fn serve(recorded: bool) -> anyhow::Result<()> {
         &setting("MAIL_FROM_ADDRESS", "reminders@example-family-practice.test"),
     )
     .context("setting up Mailpit")?;
-    let sender = Sender::new(pool.clone(), mailer, clock.clone(), Arc::new(NoExtraChecks));
+    let rules = Arc::new(SendingRules::new(pool.clone(), clock.clone()));
+    let sender = Sender::new(pool.clone(), mailer, clock.clone(), rules);
+    let (sender_pool, sender_clock) = (pool.clone(), clock.clone());
     tokio::spawn(async move {
         loop {
+            // Releases waiting reminders, sends, then marks what went out.
+            if let Err(err) = finish(&sender_pool, sender_clock.clone()).await {
+                tracing::error!(%err, "releasing reminders failed");
+            }
             if let Err(err) = sender.drain_once(50).await {
                 tracing::error!(%err, "sending failed");
+            }
+            if let Err(err) = finish(&sender_pool, sender_clock.clone()).await {
+                tracing::error!(%err, "marking reminders sent failed");
             }
             let _ = tokio::time::timeout(TICK, wake.notified()).await;
         }

@@ -59,3 +59,15 @@ pub fn local_day(now: OffsetDateTime, time_zone: &str) -> Result<Date, HoursErro
     let month = time::Month::try_from(day.month() as u8).map_err(|err| HoursError(err.to_string()))?;
     Date::from_calendar_date(i32::from(day.year()), month, day.day() as u8).map_err(|err| HoursError(err.to_string()))
 }
+
+/// Midnight at the start of the clinic's next day after `now`.
+pub fn next_day(now: OffsetDateTime, time_zone: &str) -> Result<OffsetDateTime, HoursError> {
+    let tz = zone(time_zone)?;
+    let local = to_jiff(now)?.to_zoned(tz.clone());
+    let tomorrow = local.date().tomorrow().map_err(|err| HoursError(err.to_string()))?;
+    let midnight = tomorrow
+        .to_datetime(Time::midnight())
+        .to_zoned(tz)
+        .map_err(|err| HoursError(err.to_string()))?;
+    from_jiff(midnight.timestamp())
+}

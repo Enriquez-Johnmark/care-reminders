@@ -55,7 +55,7 @@ pub struct AppState {
 
 impl AppState {
     /// The app's state; links in emails point at `base_url`.
-    pub fn new(pool: PgPool, clock: Arc<dyn Clock>, base_url: &str) -> Self {
+    pub fn new(pool: PgPool, clock: Arc<dyn Clock>, base_url: &str, sending: crate::sending::Sending) -> Self {
         let base_url = base_url.trim_end_matches('/').to_owned();
         let origin = match base_url.split_once("://") {
             Some((scheme, rest)) => format!("{scheme}://{}", rest.split('/').next().unwrap_or(rest)),
@@ -63,7 +63,7 @@ impl AppState {
         };
         Self {
             logins: Logins::new(pool.clone(), clock.clone()),
-            reviews: Reviews::new(pool.clone(), clock.clone()),
+            reviews: Reviews::new(pool.clone(), clock.clone()).with_sending(sending),
             model: None,
             secure_cookies: base_url.starts_with("https://"),
             wake_sender: Arc::new(Notify::new()),
