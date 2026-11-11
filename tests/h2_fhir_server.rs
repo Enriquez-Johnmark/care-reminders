@@ -289,6 +289,40 @@ mod fetching {
     }
 
     #[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+    async fn b3_each_fetch_chooses_new_follow_ups_and_stops_those_booked_since(pool: PgPool) {
+        let server = changing_server().await;
+        let (servers, clinic) = connected(&pool, &server, clock()).await;
+        care_reminders::rules::Rules::new(pool.clone(), clock())
+            .install_defaults(clinic, "operator")
+            .await
+            .unwrap();
+        answer_with(&server, &searchset(&[resources(1)], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+        let follow_ups = care_reminders::follow_ups::FollowUps::new(pool.clone(), clock());
+        let chosen = follow_ups.list(clinic).await.unwrap();
+
+        let mut booked = resources(1);
+        booked.push(json!({
+            "resourceType": "Appointment", "id": "p01-appointment-9", "status": "booked",
+            "appointmentType": { "coding": [{ "code": "FOLLOWUP" }] },
+            "start": "2026-11-20T09:30:00Z",
+            "participant": [{ "actor": { "reference": "Patient/p01" } }]
+        }));
+        answer_with(&server, &searchset(&[booked], None)).await;
+        servers.fetch(clinic, "operator").await.unwrap();
+
+        assert_eq!(chosen.len(), 2, "{chosen:?}");
+        let stopped: Vec<_> = follow_ups
+            .list(clinic)
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|f| f.stopped.is_some())
+            .collect();
+        assert_eq!(stopped.len(), 1, "{stopped:?}");
+    }
+
+    #[sqlx::test(migrator = "care_reminders::MIGRATOR")]
     async fn h2_the_hourly_fetch_runs_once_an_hour_has_passed_since_the_last(pool: PgPool) {
         let server = server(fhir(&searchset(&[resources(1)], None))).await;
         let clock = clock();

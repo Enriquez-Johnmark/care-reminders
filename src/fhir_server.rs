@@ -20,6 +20,7 @@ use time::Date;
 use crate::engine::audit::{self, AuditEvent};
 use crate::engine::clock::Clock;
 use crate::fhir::PatientRecord;
+use crate::follow_ups::FollowUps;
 use crate::records::{ClinicId, Records, Saved};
 
 use reqwest::Url;
@@ -187,6 +188,10 @@ pub struct FetchOutcome {
     pub unchanged: usize,
     /// Patients the reader refused, each with the reason.
     pub refused: Vec<Refused>,
+    /// New follow-ups the clinic's rules chose.
+    pub follow_ups_chosen: usize,
+    /// Follow-ups stopped because the patient booked.
+    pub follow_ups_booked: usize,
 }
 
 /// A patient the reader refused.
@@ -326,7 +331,7 @@ impl FhirServers {
     /// new or changed (H2). Every fetch, failed or not, is logged (H3).
     pub async fn fetch(&self, clinic: ClinicId, actor: &str) -> Result<FetchOutcome, FetchError> {
         let server = self.get(clinic).await?.ok_or(FetchError::NoServer)?;
-        let result = self.fetch_from(clinic, &server).await;
+        let result = self.fetch_from(clinic, &server, actor).await;
         let (action, details) = match &result {
             // The log keeps the counts and the first refusals: an append-only
             // row shouldn't grow with a broken server's every patient.
@@ -338,6 +343,8 @@ impl FhirServers {
                     "updated": outcome.updated,
                     "unchanged": outcome.unchanged,
                     "refused_count": outcome.refused.len(),
+                    "follow_ups_chosen": outcome.follow_ups_chosen,
+                    "follow_ups_booked": outcome.follow_ups_booked,
                     "refused": outcome.refused.iter().take(MAX_LOGGED_REFUSALS).collect::<Vec<_>>(),
                 }),
             ),
@@ -370,7 +377,12 @@ impl FhirServers {
         result
     }
 
-    async fn fetch_from(&self, clinic: ClinicId, server: &ServerAddress) -> Result<FetchOutcome, FetchError> {
+    async fn fetch_from(
+        &self,
+        clinic: ClinicId,
+        server: &ServerAddress,
+        actor: &str,
+    ) -> Result<FetchOutcome, FetchError> {
         let patients = self.search(server).await?;
         let records = Records::new(self.pool.clone(), self.clock.clone());
         let mut outcome = FetchOutcome {
@@ -379,6 +391,8 @@ impl FhirServers {
             updated: 0,
             unchanged: 0,
             refused: Vec::new(),
+            follow_ups_chosen: 0,
+            follow_ups_booked: 0,
         };
         let seen: Vec<String> = patients.keys().cloned().collect();
         for (patient, resources) in patients {
@@ -404,6 +418,13 @@ impl FhirServers {
         records
             .mark_unseen(clinic, &seen, "not on the FHIR server at the last fetch")
             .await?;
+        // The clinic's rules then choose new follow-ups and stop the ones
+        // whose patient has since booked (B3).
+        let chosen = FollowUps::new(self.pool.clone(), self.clock.clone())
+            .refresh(clinic, actor)
+            .await?;
+        outcome.follow_ups_chosen = chosen.selected;
+        outcome.follow_ups_booked = chosen.booked;
         Ok(outcome)
     }
 

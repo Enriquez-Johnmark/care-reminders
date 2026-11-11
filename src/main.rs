@@ -69,12 +69,14 @@ async fn run() -> anyhow::Result<()> {
                 .fetch(clinic, "operator")
                 .await?;
             println!(
-                "from {}: {} new, {} updated, {} unchanged, {} refused",
+                "from {}: {} new, {} updated, {} unchanged, {} refused; {} follow-ups chosen, {} stopped as booked",
                 outcome.server,
                 outcome.new,
                 outcome.updated,
                 outcome.unchanged,
-                outcome.refused.len()
+                outcome.refused.len(),
+                outcome.follow_ups_chosen,
+                outcome.follow_ups_booked
             );
             for refused in &outcome.refused {
                 println!("  {}: {}", refused.patient, refused.reason);
