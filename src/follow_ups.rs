@@ -108,8 +108,22 @@ impl FollowUps {
         let mut done = Refreshed::default();
         let mut tx = self.pool.begin().await?;
         for patient in patients {
-            let record: PatientRecord =
-                serde_json::from_value(patient.record).map_err(|err| sqlx::Error::Decode(err.into()))?;
+            // A stored record that can't be read marks that patient alone as
+            // not current; the others are still chosen.
+            let record: PatientRecord = match serde_json::from_value(patient.record) {
+                Ok(record) => record,
+                Err(err) => {
+                    sqlx::query!(
+                        "update patients set not_current = $3 where tenant_id = $1 and id = $2",
+                        clinic.as_uuid(),
+                        patient.id,
+                        format!("their stored record can't be read: {err}")
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                    continue;
+                }
+            };
             for rule in &rules {
                 for found in due(&rule.settings, &record, today) {
                     let id = FollowUpId::new();
@@ -152,19 +166,39 @@ impl FollowUps {
             .await?;
             for follow_up in open {
                 let kind = Kind::from_code(&follow_up.kind).unwrap_or(Kind::AfterResult);
-                if booked(&record, booking_type(kind), follow_up.since) {
-                    sqlx::query!(
-                        "update follow_ups set stopped_at = $3, stop = 'booked' where tenant_id = $1 and id = $2",
-                        clinic.as_uuid(),
-                        follow_up.id,
-                        now
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                    done.booked += 1;
-                    let id = FollowUpId::from(follow_up.id);
-                    log(&mut tx, clinic, now, actor, "follow_up.booked", id, json!({})).await?;
-                }
+                let stop = if record.patient.opted_out.contains(&kind) {
+                    Stop::OptedOut
+                } else if booked(&record, booking_type(kind), follow_up.since) {
+                    Stop::Booked
+                } else {
+                    continue;
+                };
+                sqlx::query!(
+                    "update follow_ups set stopped_at = $3, stop = $4 where tenant_id = $1 and id = $2",
+                    clinic.as_uuid(),
+                    follow_up.id,
+                    now,
+                    stop.code()
+                )
+                .execute(&mut *tx)
+                .await?;
+                let (action, details) = match stop {
+                    Stop::Booked => {
+                        done.booked += 1;
+                        ("follow_up.booked", json!({}))
+                    }
+                    _ => ("follow_up.opted_out", json!({ "from": "the patient's record" })),
+                };
+                log(
+                    &mut tx,
+                    clinic,
+                    now,
+                    actor,
+                    action,
+                    FollowUpId::from(follow_up.id),
+                    details,
+                )
+                .await?;
             }
         }
         tx.commit().await?;

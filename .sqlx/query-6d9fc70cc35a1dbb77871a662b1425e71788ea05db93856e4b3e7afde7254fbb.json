@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update follow_ups set stopped_at = $3, stop = $4 where tenant_id = $1 and id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6d9fc70cc35a1dbb77871a662b1425e71788ea05db93856e4b3e7afde7254fbb"
+}

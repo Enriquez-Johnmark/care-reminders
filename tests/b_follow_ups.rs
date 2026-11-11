@@ -178,3 +178,60 @@ async fn a4_a_clinic_sees_only_its_own_follow_ups(pool: PgPool) {
             .is_empty()
     );
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn b3_a_patient_who_opts_out_later_has_that_kinds_open_follow_ups_stopped(pool: PgPool) {
+    let clock = clock();
+    let family = practice(&pool, clock.clone()).await;
+    let follow_ups = FollowUps::new(pool.clone(), clock.clone());
+    follow_ups.refresh(family, "operator").await.unwrap();
+    let mut ana = records().remove(0);
+    ana.patient.opted_out = vec![care_reminders::fhir::Kind::ScreeningRecall];
+    Records::new(pool.clone(), clock.clone())
+        .save(family, &ana)
+        .await
+        .unwrap();
+
+    follow_ups.refresh(family, "operator").await.unwrap();
+
+    let anas: Vec<(String, Option<Stop>)> = follow_ups
+        .list(family)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|f| f.patient_name.starts_with("Ana "))
+        .map(|f| (f.rule_name, f.stopped))
+        .collect();
+    assert!(
+        anas.contains(&("Colorectal screening recall".into(), Some(Stop::OptedOut))),
+        "{anas:?}"
+    );
+    assert!(
+        anas.contains(&("Follow-up after an abnormal result".into(), None)),
+        "{anas:?}"
+    );
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn b2_a_stored_record_that_cant_be_read_is_marked_not_current_and_the_others_are_still_chosen(pool: PgPool) {
+    let family = practice(&pool, clock()).await;
+    sqlx::query("update patients set record = '{}' where fhir_id = 'p01'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let chosen = FollowUps::new(pool.clone(), clock())
+        .refresh(family, "operator")
+        .await
+        .unwrap();
+
+    assert_eq!(chosen.selected, 38);
+    let ana = Records::new(pool.clone(), clock())
+        .list(family)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|p| p.fhir_id == "p01")
+        .unwrap();
+    assert!(ana.not_current.unwrap().contains("can't be read"));
+}
