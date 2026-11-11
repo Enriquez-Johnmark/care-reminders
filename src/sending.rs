@@ -233,7 +233,24 @@ pub(crate) async fn release(
     {
         Ok(()) => Ok(true),
         Err(OutboxError::CheckFailed(reason)) => {
-            tracing::info!(%reason, message = %id, "a reminder's email was refused");
+            // Logged with its reason, for the coordinator, then ended.
+            let reminder = sqlx::query_scalar!(
+                "select reminder_id from reminder_messages where tenant_id = $1 and message_id = $2",
+                tenant.as_uuid(),
+                id.as_uuid(),
+            )
+            .fetch_one(&rules.pool)
+            .await?;
+            let event = AuditEvent {
+                tenant,
+                at: rules.clock.now(),
+                actor: audit::SYSTEM,
+                action: "reminder.refused",
+                subject_type: "reminder",
+                subject_id: reminder,
+                details: json!({ "message": id, "reason": reason }),
+            };
+            audit::record(&rules.pool, &event).await?;
             outbox.cancel(tenant, id, audit::SYSTEM).await?;
             Ok(false)
         }
@@ -588,7 +605,11 @@ pub async fn delivery(
     reminder: crate::reminders::ReminderId,
 ) -> Result<Option<Delivery>, sqlx::Error> {
     let row = sqlx::query!(
-        "select o.status, o.last_error, o.sent_at
+        "select o.status, o.last_error, o.sent_at,
+                (select e.details ->> 'reason' from audit_events e
+                 where e.tenant_id = m.tenant_id and e.action = 'reminder.refused'
+                   and e.details ->> 'message' = m.message_id::text
+                 order by e.at desc limit 1) as refused
          from reminder_messages m join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id
          where m.tenant_id = $1 and m.reminder_id = $2
          order by m.created_at desc, m.message_id desc limit 1",
@@ -600,12 +621,13 @@ pub async fn delivery(
     Ok(row.map(|row| {
         let status = match row.status.as_str() {
             "sent" => "sent",
-            "cancelled" => "withdrawn",
-            "blocked" | "unconfirmed" | "expired" => "not_sent",
+            "cancelled" if row.refused.is_none() => "withdrawn",
+            "cancelled" | "blocked" | "unconfirmed" | "expired" => "not_sent",
             _ => "queued",
         };
         let detail = row
-            .last_error
+            .refused
+            .or(row.last_error)
             .map(|error| error.strip_prefix("waiting: ").map_or(error.clone(), str::to_owned));
         Delivery {
             status,

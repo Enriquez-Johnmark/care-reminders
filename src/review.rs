@@ -277,6 +277,18 @@ impl Reviews {
         };
         let body =
             crate::drafting::fill(&current.text, &values).map_err(|err| ReviewError::CantFill(err.to_string()))?;
+        // E7 on the exact text that would go: a filled-in name or the
+        // clinic's own name may be a clinical word.
+        if let Some(problem) = check(&body)
+            .problems
+            .into_iter()
+            .find(|problem| problem.check == crate::checks::Check::ClinicalWords)
+        {
+            return Err(ReviewError::CantFill(format!(
+                "the email would name the patient's care: {}",
+                problem.detail
+            )));
+        }
         let clinic_name = values.clinic_name;
         let now = self.clock.now();
         sqlx::query!(

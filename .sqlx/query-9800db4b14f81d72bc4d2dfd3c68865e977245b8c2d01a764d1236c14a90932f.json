@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select o.status, o.last_error, o.sent_at\n         from reminder_messages m join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id\n         where m.tenant_id = $1 and m.reminder_id = $2\n         order by m.created_at desc, m.message_id desc limit 1",
+  "query": "select o.status, o.last_error, o.sent_at,\n                (select e.details ->> 'reason' from audit_events e\n                 where e.tenant_id = m.tenant_id and e.action = 'reminder.refused'\n                   and e.details ->> 'message' = m.message_id::text\n                 order by e.at desc limit 1) as refused\n         from reminder_messages m join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id\n         where m.tenant_id = $1 and m.reminder_id = $2\n         order by m.created_at desc, m.message_id desc limit 1",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,12 @@
             "name": "sent_at"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "refused",
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -46,8 +52,9 @@
     "nullable": [
       false,
       true,
-      true
+      true,
+      null
     ]
   },
-  "hash": "d0c930ade15777d1f8072250358aae98cf2ba14ca6aebd0daf14fc4620e3608b"
+  "hash": "9800db4b14f81d72bc4d2dfd3c68865e977245b8c2d01a764d1236c14a90932f"
 }

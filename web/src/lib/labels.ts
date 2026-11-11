@@ -66,6 +66,7 @@ const actions: Record<string, string> = {
   "reminder.not_emailed": "Not emailed: contact another way",
   "reminder.sent": "Sent",
   "reminder.withdrawn": "Withdrawn before sending",
+  "reminder.refused": "Not sent: a sending rule refused it",
   "outbox.approved": "Email queued",
   "outbox.send_started": "Email sending",
   "outbox.sent": "Email accepted by the mail service",

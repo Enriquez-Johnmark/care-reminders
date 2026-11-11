@@ -199,3 +199,63 @@ async fn e1_an_email_of_a_reminder_already_finished_is_never_sent(pool: PgPool) 
     assert_eq!(s.send().await, 0);
     assert!(s.sent_bodies().await.is_empty());
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e7_an_email_that_would_name_care_is_refused_at_approval_with_the_reason(pool: PgPool) {
+    let s = setup(pool).await;
+    let (draft, patient) = s.drafts().await.remove(0);
+    // A made-up first name that is also a clinical word, filled in by code.
+    sqlx::query("update patients set given_name = 'Biopsy' where fhir_id = $1")
+        .bind(&patient)
+        .execute(&s.pool)
+        .await
+        .unwrap();
+
+    let refused = s
+        .reviews
+        .approve(
+            &s.coordinator,
+            draft.reminder,
+            draft.draft,
+            &care_reminders::review::content_hash(&draft.text),
+        )
+        .await;
+
+    let err = refused.unwrap_err();
+    assert!(
+        matches!(err, care_reminders::review::ReviewError::CantFill(_)),
+        "{err:?}"
+    );
+    assert!(err.to_string().to_lowercase().contains("biopsy"), "{err}");
+    assert_eq!(s.count("select count(*) from reminder_messages").await, 0);
+}
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e1_an_email_refused_when_released_is_logged_with_its_reason_not_as_withdrawn(pool: PgPool) {
+    let s = setup(pool).await;
+    let (draft, _) = s.drafts().await.remove(0);
+    s.approve(&draft).await;
+    // As if the approval stopped before releasing the email, and the
+    // patient's address changed meanwhile.
+    sqlx::query("update outbox_messages set status = 'draft', approved_hash = null, approved_at = null, approved_by = null where reply_to is not null")
+        .execute(&s.pool)
+        .await
+        .unwrap();
+    sqlx::query("update patients set email = 'new@example.test'")
+        .execute(&s.pool)
+        .await
+        .unwrap();
+
+    assert_eq!(s.send().await, 0);
+    let delivery = care_reminders::sending::delivery(&s.pool, s.coordinator.tenant, draft.reminder)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(delivery.status, "not_sent");
+    assert!(delivery.detail.unwrap().contains("address"));
+    assert_eq!(
+        s.count("select count(*) from audit_events where action = 'reminder.refused'")
+            .await,
+        1
+    );
+}
