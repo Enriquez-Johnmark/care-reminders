@@ -48,6 +48,8 @@ jobs:
         run: cargo clippy --all-targets --all-features --locked -- -D warnings
       - name: Test
         run: cargo nextest run --all-features --locked --profile ci
+      - name: The API's TypeScript types are committed (written by the tests)
+        run: test -z "$(git status --porcelain web/src/api/generated)"
       # Fails the build when a finished milestone's criterion has no passing
       # test (docs/architecture.md). Runs after failed tests too, to show
       # them, but not when the tests never ran.
@@ -63,3 +65,107 @@ jobs:
         with:
           name: evidence-pack
           path: target/evidence/index.html
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Lint and format
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: care_reminders
+          POSTGRES_PASSWORD: care_reminders
+          POSTGRES_DB: care_reminders
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U care_reminders"
+          --health-interval 2s
+          --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.27.11
+        ports:
+          - 8025:8025
+      # The clinic's FHIR server, holding the made-up patients.
+      hapi:
+        image: hapiproject/hapi:v8.4.0-1
+        ports:
+          - 8090:8080
+    env:
+      DATABASE_URL: postgres://care_reminders:care_reminders@localhost:5432/care_reminders
+      SQLX_OFFLINE: "true"
+      BIND_ADDR: 127.0.0.1:3000
+      WEB_DIR: web/dist
+      # A development key: the data here is made up.
+      MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the server
+        run: cargo build --locked
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the app
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm exec playwright install --with-deps chromium
+      - name: Start with one clinic, its administrator and a care coordinator, fetching from HAPI FHIR
+        run: |
+          bin=./target/debug/care-reminders
+          $bin migrate
+          for _ in $(seq 1 90); do curl -sf http://localhost:8090/fhir/metadata >/dev/null && break; sleep 2; done
+          $bin load-made-up --url http://localhost:8090/fhir
+          clinic=$($bin clinic add --name "Example Family Practice" --email admin@family.example.test)
+          $bin clinic add-coordinator --clinic "$clinic" --email carla@family.example.test --name "Carla Reyes"
+          $bin clinic set-phone --clinic "$clinic" --phone "(555) 010-0100"
+          $bin clinic set-fhir-server --clinic "$clinic" --url http://localhost:8090/fhir
+          # The button does the first fetch, not the hourly one.
+          psql "$DATABASE_URL" -c "update fhir_servers set last_fetched_at = now()"
+          WORKER_TICK_SECS=2 nohup $bin serve > server.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:3000/health && break; sleep 1; done
+      - name: Browser tests
+        working-directory: web
+        run: pnpm e2e
+      - name: Server log
+        if: failure()
+        run: cat server.log
+
+  dependencies:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
