@@ -1,0 +1,138 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p07",
+      "resource": {
+        "birthDate": "1960-02-23",
+        "gender": "female",
+        "id": "p07",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Bautista (made up)",
+            "given": [
+              "Gina"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "gina.bautista@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p07-stay-1",
+      "resource": {
+        "class": {
+          "code": "IMP",
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+        },
+        "id": "p07-stay-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "period": {
+          "end": "2026-11-05",
+          "start": "2026-10-30"
+        },
+        "resourceType": "Encounter",
+        "status": "finished",
+        "subject": {
+          "reference": "Patient/p07"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p07-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "71651007",
+              "display": "Mammography",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Mammography"
+        },
+        "id": "p07-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2024-05-24",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p07"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p07-screening-2",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "73761001",
+              "display": "Colonoscopy",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Colonoscopy"
+        },
+        "id": "p07-screening-2",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2024-02-14",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p07"
+        }
+      }
+    }
+  ],
+  "id": "record-p07",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

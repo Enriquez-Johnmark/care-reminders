@@ -1,0 +1,107 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p04",
+      "resource": {
+        "birthDate": "1958-06-14",
+        "gender": "male",
+        "id": "p04",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Mercado (made up)",
+            "given": [
+              "Dan"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "dan.mercado@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p04-stay-1",
+      "resource": {
+        "class": {
+          "code": "IMP",
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+        },
+        "id": "p04-stay-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "period": {
+          "end": "2026-11-07",
+          "start": "2026-11-03"
+        },
+        "resourceType": "Encounter",
+        "status": "finished",
+        "subject": {
+          "reference": "Patient/p04"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p04-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "73761001",
+              "display": "Colonoscopy",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Colonoscopy"
+        },
+        "id": "p04-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2015-11-28",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p04"
+        }
+      }
+    }
+  ],
+  "id": "record-p04",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

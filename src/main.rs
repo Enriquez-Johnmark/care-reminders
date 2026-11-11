@@ -7,7 +7,7 @@ use anyhow::Context;
 use care_reminders::engine::accounts::Accounts;
 use care_reminders::engine::clock::SystemClock;
 
-const USAGE: &str = "usage: care-reminders migrate | clinic add --name NAME --email EMAIL | \
+const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --name NAME --email EMAIL | \
                      evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
@@ -45,6 +45,7 @@ async fn run() -> anyhow::Result<()> {
             println!("{clinic}");
             Ok(())
         }
+        Some("demo-data") => write_demo_data(),
         Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),
     }
@@ -86,5 +87,18 @@ fn evidence(args: &[String]) -> anyhow::Result<()> {
     println!("wrote {}", out.display());
     let gaps = evidence.gaps();
     anyhow::ensure!(gaps.is_empty(), "{} gap(s):\n{}", gaps.len(), gaps.join("\n"));
+    Ok(())
+}
+
+/// Writes the made-up patients, made for the demo day, to `demo/patients/`.
+fn write_demo_data() -> anyhow::Result<()> {
+    use care_reminders::demo_data::{DEMO_DAY, DIR, generate};
+    let dir = std::path::Path::new(DIR);
+    std::fs::create_dir_all(dir).context("creating the demo folder")?;
+    let files = generate(DEMO_DAY);
+    for file in &files {
+        std::fs::write(dir.join(&file.name), &file.json).with_context(|| format!("writing {}", file.name))?;
+    }
+    println!("wrote {} made-up patients to {}", files.len(), dir.display());
     Ok(())
 }

@@ -1,0 +1,130 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p01",
+      "resource": {
+        "birthDate": "1974-10-03",
+        "gender": "female",
+        "id": "p01",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Reyes (made up)",
+            "given": [
+              "Ana"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "ana.reyes@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p01-result-1",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "4548-4",
+              "display": "Hemoglobin A1c",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "Hemoglobin A1c"
+        },
+        "effectiveDateTime": "2026-10-29",
+        "id": "p01-result-1",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p01"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p01-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "71651007",
+              "display": "Mammography",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Mammography"
+        },
+        "id": "p01-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2025-10-06",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p01"
+        }
+      }
+    }
+  ],
+  "id": "record-p01",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

@@ -1,0 +1,181 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p14",
+      "resource": {
+        "birthDate": "1956-04-05",
+        "gender": "male",
+        "id": "p14",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Castillo (made up)",
+            "given": [
+              "Noel"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "noel.castillo@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p14-result-1",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "4548-4",
+              "display": "Hemoglobin A1c",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "Hemoglobin A1c"
+        },
+        "effectiveDateTime": "2026-10-01",
+        "id": "p14-result-1",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p14"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p14-result-2",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "13457-7",
+              "display": "LDL cholesterol (calculated)",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "LDL cholesterol (calculated)"
+        },
+        "effectiveDateTime": "2026-10-01",
+        "id": "p14-result-2",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p14"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p14-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "73761001",
+              "display": "Colonoscopy",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Colonoscopy"
+        },
+        "id": "p14-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2023-07-29",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p14"
+        }
+      }
+    }
+  ],
+  "id": "record-p14",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

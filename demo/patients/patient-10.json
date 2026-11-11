@@ -1,0 +1,136 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p10",
+      "resource": {
+        "birthDate": "1971-08-31",
+        "extension": [
+          {
+            "url": "http://example.test/fhir/StructureDefinition/no-email",
+            "valueBoolean": true
+          }
+        ],
+        "gender": "male",
+        "id": "p10",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Torres (made up)",
+            "given": [
+              "Jun"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "jun.torres@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p10-result-1",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "13457-7",
+              "display": "LDL cholesterol (calculated)",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "LDL cholesterol (calculated)"
+        },
+        "effectiveDateTime": "2026-10-26",
+        "id": "p10-result-1",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p10"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p10-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "73761001",
+              "display": "Colonoscopy",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Colonoscopy"
+        },
+        "id": "p10-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2021-05-20",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p10"
+        }
+      }
+    }
+  ],
+  "id": "record-p10",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

@@ -1,0 +1,107 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p19",
+      "resource": {
+        "birthDate": "1954-07-29",
+        "gender": "female",
+        "id": "p19",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Herrera (made up)",
+            "given": [
+              "Sofia"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "sofia.herrera@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p19-stay-1",
+      "resource": {
+        "class": {
+          "code": "IMP",
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+        },
+        "id": "p19-stay-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "period": {
+          "end": "2026-11-04",
+          "start": "2026-10-31"
+        },
+        "resourceType": "Encounter",
+        "status": "finished",
+        "subject": {
+          "reference": "Patient/p19"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p19-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "71651007",
+              "display": "Mammography",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Mammography"
+        },
+        "id": "p19-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2026-08-02",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p19"
+        }
+      }
+    }
+  ],
+  "id": "record-p19",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

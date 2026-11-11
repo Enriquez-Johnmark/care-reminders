@@ -1,0 +1,161 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p17",
+      "resource": {
+        "birthDate": "1957-10-11",
+        "gender": "female",
+        "id": "p17",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Lim (made up)",
+            "given": [
+              "Queenie"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "queenie.lim@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p17-result-1",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "4548-4",
+              "display": "Hemoglobin A1c",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "Hemoglobin A1c"
+        },
+        "effectiveDateTime": "2026-10-23",
+        "id": "p17-result-1",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p17"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p17-screening-1",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "71651007",
+              "display": "Mammography",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Mammography"
+        },
+        "id": "p17-screening-1",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2024-02-14",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p17"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:example:p17-screening-2",
+      "resource": {
+        "code": {
+          "coding": [
+            {
+              "code": "73761001",
+              "display": "Colonoscopy",
+              "system": "http://snomed.info/sct"
+            }
+          ],
+          "text": "Colonoscopy"
+        },
+        "id": "p17-screening-2",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "performedDateTime": "2022-10-02",
+        "resourceType": "Procedure",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/p17"
+        }
+      }
+    }
+  ],
+  "id": "record-p17",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}

@@ -1,0 +1,99 @@
+{
+  "entry": [
+    {
+      "fullUrl": "urn:example:p09",
+      "resource": {
+        "birthDate": "1997-10-07",
+        "gender": "female",
+        "id": "p09",
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "name": [
+          {
+            "family": "Navarro (made up)",
+            "given": [
+              "Iris"
+            ]
+          }
+        ],
+        "resourceType": "Patient",
+        "telecom": [
+          {
+            "system": "email",
+            "value": "iris.navarro@example.test"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:example:p09-result-1",
+      "resource": {
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory",
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "43304-5",
+              "display": "Chlamydia trachomatis rRNA",
+              "system": "http://loinc.org"
+            }
+          ],
+          "text": "Chlamydia trachomatis rRNA"
+        },
+        "effectiveDateTime": "2026-10-31",
+        "id": "p09-result-1",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "code": "A",
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+              }
+            ]
+          }
+        ],
+        "meta": {
+          "security": [
+            {
+              "code": "HTEST",
+              "display": "test health data",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+            }
+          ]
+        },
+        "resourceType": "Observation",
+        "status": "final",
+        "subject": {
+          "reference": "Patient/p09"
+        }
+      }
+    }
+  ],
+  "id": "record-p09",
+  "meta": {
+    "security": [
+      {
+        "code": "HTEST",
+        "display": "test health data",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason"
+      }
+    ]
+  },
+  "resourceType": "Bundle",
+  "type": "collection"
+}
