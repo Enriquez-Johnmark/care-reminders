@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into clinic_settings (tenant_id, phone) values ($1, $2)\n         on conflict (tenant_id) do update set phone = excluded.phone",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d4d4a076170f7f3c880a06bf36d28bd2d0808d9cd9b200a61871cfbde4dfdbb3"
+}

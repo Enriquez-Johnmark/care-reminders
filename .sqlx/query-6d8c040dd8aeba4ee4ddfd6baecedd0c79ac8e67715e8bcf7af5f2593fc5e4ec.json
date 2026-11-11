@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select phone, tone from clinic_settings where tenant_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "phone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clinic_settings",
+            "name": "phone"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tone",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clinic_settings",
+            "name": "tone"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6d8c040dd8aeba4ee4ddfd6baecedd0c79ac8e67715e8bcf7af5f2593fc5e4ec"
+}

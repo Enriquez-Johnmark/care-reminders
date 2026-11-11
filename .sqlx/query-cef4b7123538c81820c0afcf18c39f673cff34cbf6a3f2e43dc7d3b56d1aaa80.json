@@ -1,0 +1,126 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct on (r.id) r.id, r.number, r.follow_up_id, f.kind, f.reason, f.due_by, p.name,\n                  p.no_email, jsonb_array_length(d.problems) > 0 as \"blocked!\",\n                  exists (select 1 from approvals a where a.tenant_id = r.tenant_id and a.draft_id = d.id) as \"approved!\"\n           from reminders r\n           join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n           join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n           join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n           where r.tenant_id = $1 and r.finished_at is null and f.stopped_at is null\n           order by r.id, d.attempt desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "number",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "follow_up_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "follow_up_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "due_by",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "due_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "no_email",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "patients",
+            "name": "no_email"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "blocked!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "approved!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "cef4b7123538c81820c0afcf18c39f673cff34cbf6a3f2e43dc7d3b56d1aaa80"
+}

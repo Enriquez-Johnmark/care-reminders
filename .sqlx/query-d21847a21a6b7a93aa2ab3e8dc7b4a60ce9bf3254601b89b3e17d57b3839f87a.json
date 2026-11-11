@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "delete from outbox_messages\n             where tenant_id = $1 and id = any($2)\n               and status in ('sent', 'blocked', 'unconfirmed', 'expired', 'cancelled')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d21847a21a6b7a93aa2ab3e8dc7b4a60ce9bf3254601b89b3e17d57b3839f87a"
+}

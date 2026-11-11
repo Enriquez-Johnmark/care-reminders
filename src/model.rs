@@ -206,3 +206,28 @@ pub fn remove_unused(dir: &Path, used: &std::collections::HashSet<String>) -> st
     }
     Ok(removed)
 }
+
+/// The model the app drafts with: Claude through the owner's key, or its
+/// recorded answers (the demo and the showcase).
+pub enum AnyModel {
+    /// The live model.
+    Live(crate::engine::llm::AnthropicClient),
+    /// Recorded answers, replayed.
+    Recorded(Recorded),
+}
+
+impl LanguageModel for AnyModel {
+    fn model(&self) -> &str {
+        match self {
+            Self::Live(model) => model.model(),
+            Self::Recorded(model) => model.model(),
+        }
+    }
+
+    async fn complete(&self, request: &LlmRequest) -> Result<LlmReply, LlmError> {
+        match self {
+            Self::Live(model) => model.complete(request).await,
+            Self::Recorded(model) => model.complete(request).await,
+        }
+    }
+}

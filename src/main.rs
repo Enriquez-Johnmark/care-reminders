@@ -10,8 +10,11 @@ use care_reminders::fhir_server::{FhirServers, ServerAddress};
 use care_reminders::records::ClinicId;
 
 const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --name NAME --email EMAIL | \
+                     clinic add-coordinator --clinic ID --email EMAIL --name NAME | \
+                     clinic set-phone --clinic ID --phone PHONE | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
-                     work [--recorded] | evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
+                     work [--recorded] | serve [--recorded] | \
+                     evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
     let result = tokio::runtime::Builder::new_multi_thread()
@@ -63,6 +66,24 @@ async fn run() -> anyhow::Result<()> {
             println!("{clinic} fetches from {address}");
             Ok(())
         }
+        Some("clinic") if args.get(1).map(String::as_str) == Some("add-coordinator") => {
+            let clinic = clinic_option(&args)?;
+            let (email, name) = (option(&args, "--email")?, option(&args, "--name")?);
+            care_reminders::review::Reviews::new(connect().await?, Arc::new(SystemClock))
+                .add_coordinator(clinic, email, name, "operator")
+                .await
+                .context("adding the coordinator")?;
+            println!("added {name} <{email}>");
+            Ok(())
+        }
+        Some("clinic") if args.get(1).map(String::as_str) == Some("set-phone") => {
+            let clinic = clinic_option(&args)?;
+            let phone = option(&args, "--phone")?;
+            care_reminders::settings::set_phone(&connect().await?, clinic, phone).await?;
+            println!("{clinic}'s reminders give {phone}");
+            Ok(())
+        }
+        Some("serve") => serve(args.iter().any(|arg| arg == "--recorded")).await,
         Some("fetch") => {
             let clinic = clinic_option(&args)?;
             let outcome = FhirServers::new(connect().await?, Arc::new(SystemClock))
@@ -162,21 +183,32 @@ fn clinic_option(args: &[String]) -> anyhow::Result<ClinicId> {
 /// worded by the live model with the owner's key, by recorded answers with
 /// `--recorded`, or by the clinic's template when there is neither.
 async fn work(args: &[String]) -> anyhow::Result<()> {
-    use care_reminders::model::{DIR, Recorded};
-    let pool = connect().await?;
-    if args.iter().any(|arg| arg == "--recorded") {
-        let model = Recorded::new(&drafting_model(), std::path::Path::new(DIR));
-        work_with(pool, Some(model)).await
-    } else {
-        work_with(pool, live_model()?).await
-    }
+    let model = choose_model(args.iter().any(|arg| arg == "--recorded"))?;
+    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+    run_worker(connect().await?, clock, model).await;
+    Ok(())
 }
 
-async fn work_with<M: care_reminders::engine::llm::LanguageModel>(
+/// Recorded answers, the live model with the owner's key, or none.
+fn choose_model(recorded: bool) -> anyhow::Result<Option<care_reminders::model::AnyModel>> {
+    use care_reminders::model::{AnyModel, DIR, Recorded};
+    Ok(if recorded {
+        Some(AnyModel::Recorded(Recorded::new(
+            &drafting_model(),
+            std::path::Path::new(DIR),
+        )))
+    } else {
+        live_model()?.map(AnyModel::Live)
+    })
+}
+
+/// Runs the fetch and drafting sweeps every minute, for good. A failed pass
+/// is reported and tried again; it never stops the worker.
+async fn run_worker(
     pool: sqlx::PgPool,
-    model: Option<M>,
-) -> anyhow::Result<()> {
-    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+    clock: Arc<dyn care_reminders::engine::clock::Clock>,
+    model: Option<care_reminders::model::AnyModel>,
+) {
     let servers = FhirServers::new(pool.clone(), clock.clone());
     let drafter = care_reminders::reminders::Drafter::new(pool, clock, model);
     loop {
@@ -190,7 +222,6 @@ async fn work_with<M: care_reminders::engine::llm::LanguageModel>(
             }
             Err(err) => eprintln!("care-reminders: the hourly fetch failed: {err}"),
         }
-        // A failed pass is reported and tried again; it never stops the worker.
         match drafter.draft_due().await {
             Ok(0) => {}
             Ok(drafted) => println!("drafted {drafted} reminder(s)"),
@@ -198,6 +229,66 @@ async fn work_with<M: care_reminders::engine::llm::LanguageModel>(
         }
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     }
+}
+
+/// How often `serve` drains the outbox when nothing wakes it.
+const TICK: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Runs the web app, the outbox sender (login emails go out at once) and the
+/// worker, until stopped. Development settings by default: the app on
+/// 127.0.0.1:3000 and email caught by Mailpit.
+async fn serve(recorded: bool) -> anyhow::Result<()> {
+    use care_reminders::engine::mail::MailpitMailer;
+    use care_reminders::engine::outbox::{NoExtraChecks, Sender};
+    use care_reminders::web::{AppState, router};
+
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .init();
+    let setting = |name: &str, default: &str| std::env::var(name).unwrap_or_else(|_| default.to_owned());
+    let bind = setting("BIND_ADDR", "127.0.0.1:3000");
+    let base_url = setting("PUBLIC_BASE_URL", &format!("http://{bind}"));
+    let pool = connect().await?;
+    care_reminders::MIGRATOR
+        .run(&pool)
+        .await
+        .context("running migrations")?;
+    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+
+    let mut state = AppState::new(pool.clone(), clock.clone(), &base_url);
+    if let Some(model) = choose_model(recorded)? {
+        state = state.with_model(model);
+    }
+    if let Ok(dir) = std::env::var("WEB_DIR") {
+        state = state.with_web_dir(std::path::Path::new(&dir));
+    }
+    let wake = state.sender_wake_up();
+    let mailer = MailpitMailer::new(
+        &setting("MAILPIT_URL", "http://localhost:8025"),
+        &setting("MAIL_FROM_ADDRESS", "reminders@example-family-practice.test"),
+    )
+    .context("setting up Mailpit")?;
+    let sender = Sender::new(pool.clone(), mailer, clock.clone(), Arc::new(NoExtraChecks));
+    tokio::spawn(async move {
+        loop {
+            if let Err(err) = sender.drain_once(50).await {
+                tracing::error!(%err, "sending failed");
+            }
+            let _ = tokio::time::timeout(TICK, wake.notified()).await;
+        }
+    });
+    tokio::spawn(run_worker(pool.clone(), clock.clone(), choose_model(recorded)?));
+
+    let listener = tokio::net::TcpListener::bind(&bind)
+        .await
+        .with_context(|| format!("listening on {bind}"))?;
+    tracing::info!(%bind, %base_url, "serving");
+    axum::serve(listener, router(state))
+        .with_graceful_shutdown(async {
+            let _ = tokio::signal::ctrl_c().await;
+        })
+        .await
+        .context("serving")
 }
 
 /// The model that words the drafts (`LLM_MODEL`); Sonnet unless set.

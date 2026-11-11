@@ -18,6 +18,8 @@ pub mod records;
 pub mod reminders;
 pub mod review;
 pub mod rules;
+pub mod settings;
+pub mod web;
 
 /// The engine, Nudgewright, pinned to a release.
 pub use nudgewright as engine;
