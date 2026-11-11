@@ -183,3 +183,19 @@ async fn e7_the_sent_emails_name_no_reason_test_or_specialty(pool: PgPool) {
         assert!(body.contains("(555) 010-0100") && body.contains("/o/"), "{body}");
     }
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn e1_an_email_of_a_reminder_already_finished_is_never_sent(pool: PgPool) {
+    let s = setup(pool).await;
+    let drafts = s.drafts().await;
+    s.approve(&drafts[0].0).await;
+    // Finished another way (sent by an earlier draft, or skipped) while it waited.
+    sqlx::query("update reminders set finished_at = now(), outcome = 'skipped' where id = $1")
+        .bind(drafts[0].0.reminder.as_uuid())
+        .execute(&s.pool)
+        .await
+        .unwrap();
+
+    assert_eq!(s.send().await, 0);
+    assert!(s.sent_bodies().await.is_empty());
+}

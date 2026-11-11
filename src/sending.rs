@@ -120,7 +120,7 @@ impl SendingRules {
     async fn judge(&self, tenant: TenantId, id: MessageId, email: &Email) -> Result<(), CheckFailed> {
         let unavailable = |err: sqlx::Error| CheckFailed::Unavailable(err.to_string());
         let row = sqlx::query!(
-            "select f.stopped_at is not null as \"stopped!\", p.id as patient, p.no_email, p.email, p.not_current,
+            "select f.stopped_at is not null as \"stopped!\", r.finished_at is not null as \"finished!\", p.id as patient, p.no_email, p.email, p.not_current,
                     d.text, a.content_hash as \"approved_hash?\",
                     d.attempt = (select max(attempt) from drafts
                                  where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",
@@ -143,6 +143,9 @@ impl SendingRules {
         let refuse = |why: &str| Err(CheckFailed::Refused(why.to_owned()));
         if row.stopped {
             return refuse("the follow-up has stopped");
+        }
+        if row.finished {
+            return refuse("the reminder is already finished");
         }
         if row.no_email || row.email.as_deref() != Some(email.to_address.as_str()) {
             return refuse("the patient asked not to be emailed, or their address changed");

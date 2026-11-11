@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select f.stopped_at is not null as \"stopped!\", p.id as patient, p.no_email, p.email, p.not_current,\n                    d.text, a.content_hash as \"approved_hash?\",\n                    d.attempt = (select max(attempt) from drafts\n                                 where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",\n                    coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"\n             from reminder_messages m\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = m.tenant_id and d.id = m.draft_id\n             left join approvals a on a.tenant_id = m.tenant_id and a.draft_id = m.draft_id\n             left join clinic_settings s on s.tenant_id = m.tenant_id\n             where m.tenant_id = $1 and m.message_id = $2",
+  "query": "select f.stopped_at is not null as \"stopped!\", r.finished_at is not null as \"finished!\", p.id as patient, p.no_email, p.email, p.not_current,\n                    d.text, a.content_hash as \"approved_hash?\",\n                    d.attempt = (select max(attempt) from drafts\n                                 where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",\n                    coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"\n             from reminder_messages m\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = m.tenant_id and d.id = m.draft_id\n             left join approvals a on a.tenant_id = m.tenant_id and a.draft_id = m.draft_id\n             left join clinic_settings s on s.tenant_id = m.tenant_id\n             where m.tenant_id = $1 and m.message_id = $2",
   "describe": {
     "columns": [
       {
@@ -11,6 +11,12 @@
       },
       {
         "ordinal": 1,
+        "name": "finished!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
         "name": "patient",
         "type_info": "Uuid",
         "origin": {
@@ -21,7 +27,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "no_email",
         "type_info": "Bool",
         "origin": {
@@ -32,7 +38,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "email",
         "type_info": "Text",
         "origin": {
@@ -43,7 +49,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "not_current",
         "type_info": "Text",
         "origin": {
@@ -54,7 +60,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "text",
         "type_info": "Text",
         "origin": {
@@ -65,7 +71,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "approved_hash?",
         "type_info": "Text",
         "origin": {
@@ -76,13 +82,13 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "latest!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "time_zone!",
         "type_info": "Text",
         "origin": "Expression"
@@ -96,6 +102,7 @@
     },
     "nullable": [
       null,
+      null,
       false,
       false,
       true,
@@ -106,5 +113,5 @@
       null
     ]
   },
-  "hash": "b465f1d3638242fba1035506f5460bc91d2be7630a44452f2db282ab2236a849"
+  "hash": "e10635fa5b0447ea0b8cd3172f0233f99862b7b7f186a6896fd1eb47fb5790cd"
 }
