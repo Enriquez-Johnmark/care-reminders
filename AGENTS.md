@@ -11,8 +11,8 @@ Each gate needs the owner's explicit "yes"; an approval for one phase never carr
 | Phase | Status |
 | --- | --- |
 | 1. Research | done (2026-11-11, `docs/research/README.md`) |
-| 2. Brief | **next**: Round 1 put to the owner |
-| 3. Spec & acceptance criteria | not started |
+| 2. Brief | done, approved 2026-11-11 (`docs/product/brief.md`) |
+| 3. Spec & acceptance criteria | **next** |
 | 4. Architecture | not started |
 | 5. Build | not started |
 
@@ -28,7 +28,7 @@ Research claims carry a source (URL, publisher, date) and a confidence (H/M/L). 
 
 ## Rules
 
-- **No real company or patient.** No real company's name, branding or content, and no real patient data, anywhere in the repository. Patients and their care are made up, and say so.
+- **No real company or patient.** No real company's name, branding or content, and no real patient data, anywhere in the repository, except that research documents may name real companies as cited sources (decided 2026-11-11). Patients and their care are made up, and say so.
 - **A person approves every reminder.** Nothing is sent without approval, and the approval binds the exact text. Every draft, check, edit, approval, send, reply and opt-out is logged.
 - **Reminders never give clinical advice,** and reveal no more about a patient's care than the clinic allows; code checks this before a person sees a draft.
 - **Model output is untrusted.** Parsed into strict types and checked by rules before a person sees it.
