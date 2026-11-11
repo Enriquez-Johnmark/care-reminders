@@ -11,7 +11,7 @@ use care_reminders::records::ClinicId;
 
 const USAGE: &str = "usage: care-reminders migrate | demo-data | clinic add --name NAME --email EMAIL | \
                      clinic set-fhir-server --clinic ID --url URL | fetch --clinic ID | load-made-up --url URL | \
-                     work | evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
+                     work [--recorded] | evidence --commit SHA [--signed true|false] [--junit FILE] [--out FILE]";
 
 fn main() -> ExitCode {
     let result = tokio::runtime::Builder::new_multi_thread()
@@ -90,7 +90,7 @@ async fn run() -> anyhow::Result<()> {
             println!("loaded {loaded} made-up patients into {address}");
             Ok(())
         }
-        Some("work") => work().await,
+        Some("work") => work(&args).await,
         Some("demo-data") => write_demo_data(),
         Some("evidence") => evidence(&args),
         _ => anyhow::bail!(USAGE),
@@ -158,15 +158,62 @@ fn clinic_option(args: &[String]) -> anyhow::Result<ClinicId> {
 }
 
 /// The background worker: every minute, the hourly fetch for each clinic
-/// that is due (H2).
-async fn work() -> anyhow::Result<()> {
-    let servers = FhirServers::new(connect().await?, Arc::new(SystemClock));
+/// that is due (H2), then drafting each reminder that is due (E6). Drafts are
+/// worded by the live model with the owner's key, by recorded answers with
+/// `--recorded`, or by the clinic's template when there is neither.
+async fn work(args: &[String]) -> anyhow::Result<()> {
+    use care_reminders::model::{DIR, Recorded};
+    let pool = connect().await?;
+    if args.iter().any(|arg| arg == "--recorded") {
+        let model = Recorded::new(&drafting_model(), std::path::Path::new(DIR));
+        work_with(pool, Some(model)).await
+    } else {
+        work_with(pool, live_model()?).await
+    }
+}
+
+async fn work_with<M: care_reminders::engine::llm::LanguageModel>(
+    pool: sqlx::PgPool,
+    model: Option<M>,
+) -> anyhow::Result<()> {
+    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+    let servers = FhirServers::new(pool.clone(), clock.clone());
+    let drafter = care_reminders::reminders::Drafter::new(pool, clock, model);
     loop {
         for (clinic, result) in servers.fetch_due().await? {
             if let Err(err) = result {
                 eprintln!("care-reminders: the hourly fetch for {clinic} failed: {err}");
             }
         }
+        let drafted = drafter.draft_due().await?;
+        if drafted > 0 {
+            println!("drafted {drafted} reminder(s)");
+        }
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     }
+}
+
+/// The model that words the drafts (`LLM_MODEL`); Sonnet unless set.
+fn drafting_model() -> String {
+    std::env::var("LLM_MODEL").unwrap_or_else(|_| "claude-sonnet-5-5".to_owned())
+}
+
+/// The live model, with the owner's key (`OWNER_ANTHROPIC_API_KEY`, never
+/// `ANTHROPIC_API_KEY`, which Claude Code itself reads), if it is set.
+fn live_model() -> anyhow::Result<Option<care_reminders::engine::llm::AnthropicClient>> {
+    let Some(key) = std::env::var("OWNER_ANTHROPIC_API_KEY")
+        .ok()
+        .filter(|key| !key.trim().is_empty())
+    else {
+        return Ok(None);
+    };
+    let base = std::env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_owned());
+    let client = care_reminders::engine::llm::AnthropicClient::new(
+        &base,
+        key.into(),
+        &drafting_model(),
+        std::time::Duration::from_secs(90),
+    )
+    .context("setting up the model client")?;
+    Ok(Some(client))
 }

@@ -14,6 +14,7 @@ pub mod html;
 pub mod made_up;
 pub mod model;
 pub mod records;
+pub mod reminders;
 pub mod rules;
 
 /// The engine, Nudgewright, pinned to a release.

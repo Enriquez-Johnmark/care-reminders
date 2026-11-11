@@ -1,0 +1,93 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select f.tenant_id, f.id, f.kind, f.selected_at, coalesce(s.tone, 'warm') as \"tone!\",\n                      last.number as \"last_number?\", last.finished_at as \"last_finished?\"\n               from follow_ups f\n               left join clinic_settings s on s.tenant_id = f.tenant_id\n               left join lateral (\n                   select number, finished_at from reminders r\n                   where r.tenant_id = f.tenant_id and r.follow_up_id = f.id\n                   order by number desc limit 1\n               ) last on true\n               where f.stopped_at is null\n               order by f.selected_at, f.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tenant_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "tenant_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "selected_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "selected_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "tone!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_number?",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "last_finished?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      true
+    ]
+  },
+  "hash": "083a64192eedf7d2cdc24d6a918256744cc5ad31d1ed3bd43ec809a4440f81e8"
+}

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into reminders (id, tenant_id, follow_up_id, number, planned_on, created_at)\n             values ($1, $2, $3, $4, $5, $6) on conflict (tenant_id, follow_up_id, number) do nothing",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int2",
+        "Date",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "99a4674b6af2f8735c3237821caff19adf66a6be8b16ee5356aecd9745da6ab0"
+}

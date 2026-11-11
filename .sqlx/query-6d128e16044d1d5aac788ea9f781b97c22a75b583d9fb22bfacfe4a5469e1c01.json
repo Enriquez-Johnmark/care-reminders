@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct on (r.id) r.id as reminder, r.number, d.id as draft, d.source, d.text, d.problems, d.warnings\n             from reminders r join drafts d on d.tenant_id = r.tenant_id and d.reminder_id = r.id\n             where r.tenant_id = $1\n             order by r.id, d.attempt desc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reminder",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "number",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "draft",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "problems",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "problems"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "warnings",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "drafts",
+            "name": "warnings"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6d128e16044d1d5aac788ea9f781b97c22a75b583d9fb22bfacfe4a5469e1c01"
+}
