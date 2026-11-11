@@ -46,6 +46,7 @@ Checked in Nudgewright v0.4.5 before this was written:
 
 - Each rule type is a plain function from a patient's data and the rule's settings to "due, by this date, for this reason" or "not due". It makes no model call and no database call, so B1–B5 are unit tests.
 - Each change to a rule stores a new **rule version**; a follow-up keeps the version that selected it.
+- A patient whose stored record **isn't current** (gone from the server at the last fetch, or their newer record refused) is never selected: the rules don't remind on stale data. Staff see the reason.
 
 ## One approval covers the text and the email (Round 1, 2026-11-11)
 
