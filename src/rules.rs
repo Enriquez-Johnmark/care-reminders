@@ -65,7 +65,7 @@ impl RuleSettings {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Due {
     /// What in the record it comes from, so the same thing never makes two
-    /// follow-ups: e.g. `Observation/p01-result-1` or `screening/73761001`.
+    /// follow-ups: e.g. `Observation/p01-result-1` or `screening/73761001/never`.
     pub source: String,
     /// Why, for staff (never for the patient).
     pub reason: String,
@@ -171,7 +171,12 @@ pub fn due(settings: &RuleSettings, record: &PatientRecord, today: Date) -> Vec<
                 None => format!("No {screening_name} on record"),
             };
             vec![Due {
-                source: format!("screening/{screening}"),
+                // Named by the last screening it follows, so the next cycle
+                // is a new recall and this one never repeats (B4).
+                source: format!(
+                    "screening/{screening}/{}",
+                    last.map_or_else(|| "never".to_owned(), |last| last.to_string())
+                ),
                 reason,
                 due_by: today + Duration::days(*within_days),
                 since: today,

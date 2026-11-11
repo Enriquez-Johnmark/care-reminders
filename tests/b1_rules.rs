@@ -112,3 +112,25 @@ fn b3_a_booked_or_fulfilled_follow_up_after_the_result_counts_but_a_cancelled_on
     assert_eq!(due(&settings, &cancelled, DEMO_DAY).len(), 1, "cancelled");
     assert_eq!(due(&settings, &before, DEMO_DAY).len(), 1, "booked before the result");
 }
+
+#[test]
+fn b4_a_screening_recall_comes_back_once_the_next_one_is_overdue() {
+    let mut ana = records()[0].clone();
+    let colorectal = rule(Kind::ScreeningRecall, "Colorectal");
+    let first = due(&colorectal, &ana, DEMO_DAY);
+    ana.screenings.push(care_reminders::fhir::Screening {
+        fhir_id: "p01-screening-9".into(),
+        code: "73761001".into(),
+        performed: DEMO_DAY,
+    });
+    let ten_years_on = date!(2036 - 11 - 11);
+
+    let again = due(&colorectal, &ana, ten_years_on);
+
+    assert_ne!(first[0].source, again[0].source, "a new recall, not the old one");
+    assert_eq!(
+        due(&colorectal, &ana, ten_years_on)[0].source,
+        again[0].source,
+        "the same recall stays one"
+    );
+}
