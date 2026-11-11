@@ -5,6 +5,7 @@
 
 pub mod evidence;
 pub mod html;
+pub mod made_up;
 
 /// The engine, Nudgewright, pinned to a release.
 pub use nudgewright as engine;
