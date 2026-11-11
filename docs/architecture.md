@@ -46,6 +46,8 @@ Checked in Nudgewright v0.4.5 before this was written:
 
 - Each rule type is a plain function from a patient's data and the rule's settings to "due, by this date, for this reason" or "not due". It makes no model call and no database call, so B1–B5 are unit tests.
 - Each change to a rule stores a new **rule version**; a follow-up keeps the version that selected it.
+- **One follow-up visit answers every follow-up of its type:** a booked or fulfilled `FOLLOWUP` appointment after a result or discharge stops each open after-result and after-discharge follow-up it comes after, since one visit can cover both; a `ROUTINE` one answers screening recalls.
+- **The day the rules use** is the UTC date until M5 gives each clinic its time zone; from then, choosing and sending both use the clinic's day.
 - A patient whose stored record **isn't current** (gone from the server at the last fetch, or their newer record refused) is never selected: the rules don't remind on stale data. Staff see the reason.
 
 ## One approval covers the text and the email (Round 1, 2026-11-11)
@@ -57,7 +59,7 @@ Checked in Nudgewright v0.4.5 before this was written:
 A `PreSendCheck` runs at approval and again before each send:
 
 - **held until later** (the engine's "not until"): more than 1 reminder that day or 3 that week for the patient, or outside 8 am–6 pm on weekdays, clinic time;
-- **refused**: the follow-up has stopped, or the patient asked not to be emailed.
+- **refused**: the follow-up has stopped, the patient asked not to be emailed, or the patient's record isn't current (they may have been removed from the clinic's server; their open follow-ups wait rather than stop, in case they come back).
 
 A booking found at a fetch also **cancels** an approved reminder that hasn't gone yet.
 
