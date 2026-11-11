@@ -55,6 +55,7 @@ const actions: Record<string, string> = {
   "follow_up.selected": "Chosen by a rule",
   "follow_up.booked": "Stopped: the patient booked",
   "follow_up.opted_out": "Stopped: the patient opted out",
+  "follow_up.replied": "Stopped: the patient replied",
   "reminder.drafted": "Drafted",
   "reminder.checked": "Checked",
   "reminder.edited": "Edited",
@@ -62,6 +63,13 @@ const actions: Record<string, string> = {
   "reminder.redrafted": "New draft asked for",
   "reminder.approved": "Approved",
   "reminder.skipped": "Skipped",
+  "reminder.not_emailed": "Not emailed: contact another way",
+  "reminder.sent": "Sent",
+  "reminder.withdrawn": "Withdrawn before sending",
+  "outbox.approved": "Email queued",
+  "outbox.send_started": "Email sending",
+  "outbox.sent": "Email accepted by the mail service",
+  "outbox.cancelled": "Email cancelled",
 }
 
 export function actionLabel(action: string) {

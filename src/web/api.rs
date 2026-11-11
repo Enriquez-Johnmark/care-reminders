@@ -444,8 +444,22 @@ pub struct ReminderView {
     pub new_drafts_left: i64,
     /// The patient asked not to be emailed (E5).
     pub contact_another_way: bool,
-    /// `sent` or `skipped` once finished.
+    /// `sent`, `skipped` or `contact-another-way` once finished.
     pub finished: Option<String>,
+    /// Its email, once approved.
+    pub delivery: Option<DeliveryView>,
+}
+
+/// Where a reminder's email stands.
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub struct DeliveryView {
+    /// `queued`, `sent`, `withdrawn` or `not_sent`.
+    pub status: &'static str,
+    /// Why it waits or wasn't sent.
+    pub detail: Option<String>,
+    /// When it went.
+    pub sent_at: Option<String>,
 }
 
 async fn reminder(
@@ -492,6 +506,13 @@ async fn reminder(
         Err(err) => (None, Some(err.to_string())),
     };
     let approval = state.reviews.current_approval(clinic, ReminderId::from(row.id)).await?;
+    let delivery = crate::sending::delivery(&state.pool, clinic, ReminderId::from(row.id))
+        .await?
+        .map(|delivery| DeliveryView {
+            status: delivery.status,
+            detail: delivery.detail,
+            sent_at: delivery.sent_at.map(time_text),
+        });
     Ok(Json(ReminderView {
         id: row.id.to_string(),
         follow_up: row.follow_up_id.to_string(),
@@ -532,6 +553,7 @@ async fn reminder(
         },
         contact_another_way: row.no_email,
         finished: row.outcome,
+        delivery,
     }))
 }
 

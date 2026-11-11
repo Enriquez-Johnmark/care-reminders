@@ -102,13 +102,8 @@ function DraftStatus({ reminder }: { reminder: ReminderView }) {
         <span className="font-medium text-foreground">{sourceLabel(draft.source)}</span>
         {draft.grade > 0 ? <> · reading grade {draft.grade.toFixed(1)}</> : null}
       </p>
-      {reminder.finished ? (
-        <Notice tone="info">
-          <CircleCheckIcon />
-          <AlertTitle>{reminder.finished === "skipped" ? "Skipped" : "Sent"}</AlertTitle>
-          <AlertDescription>This reminder is finished.</AlertDescription>
-        </Notice>
-      ) : null}
+      {reminder.finished ? <Finished reminder={reminder} /> : null}
+      {reminder.delivery && !reminder.finished ? <Delivery reminder={reminder} /> : null}
       {reminder.approved_at ? (
         <Notice tone="info">
           <CircleCheckIcon />
@@ -151,6 +146,58 @@ function DraftStatus({ reminder }: { reminder: ReminderView }) {
 }
 
 /** A notice inside the sheet: a tinted band, not a box inside a box. */
+const finishedText = {
+  sent: ["Sent", "This reminder is finished."],
+  skipped: ["Skipped", "This reminder is finished."],
+  "contact-another-way": [
+    "Not emailed",
+    "The patient asked not to be emailed, so contact them another way.",
+  ],
+} as const
+
+function Finished({ reminder }: { reminder: ReminderView }) {
+  const [title, text] =
+    finishedText[reminder.finished as keyof typeof finishedText] ?? finishedText.sent
+  const sentAt = reminder.delivery?.sent_at
+  return (
+    <Notice tone="info">
+      <CircleCheckIcon />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>
+        {sentAt ? `Sent on ${formatDateTime(sentAt)}. ` : null}
+        {text}
+      </AlertDescription>
+    </Notice>
+  )
+}
+
+/** The approved reminder's email before it is finished: waiting to go, or
+ *  stopped by a sending rule. */
+function Delivery({ reminder }: { reminder: ReminderView }) {
+  const delivery = reminder.delivery
+  if (!delivery) return null
+  if (delivery.status === "queued") {
+    return (
+      <Notice tone="info">
+        <CircleCheckIcon />
+        <AlertTitle>Waiting to go</AlertTitle>
+        <AlertDescription>{delivery.detail ?? "It goes out at the next send."}</AlertDescription>
+      </Notice>
+    )
+  }
+  return (
+    <Notice tone="caution">
+      <TriangleAlertIcon />
+      <AlertTitle>{delivery.status === "withdrawn" ? "Withdrawn" : "Not sent"}</AlertTitle>
+      <AlertDescription>
+        {delivery.status === "withdrawn"
+          ? "The follow-up stopped before this reminder went out."
+          : (delivery.detail ?? "It wasn't sent; check with the patient before sending again.")}
+      </AlertDescription>
+    </Notice>
+  )
+}
+
 function Notice({
   tone,
   children,

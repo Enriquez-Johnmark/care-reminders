@@ -548,3 +548,50 @@ pub async fn replies(pool: &PgPool, clinic: TenantId) -> Result<Vec<Reply>, sqlx
         })
         .collect())
 }
+
+/// Where a reminder's latest email stands, as staff see it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Delivery {
+    /// `queued` (waiting to go, perhaps held by a sending rule), `sent`,
+    /// `withdrawn` (the follow-up stopped first) or `not_sent` (refused, or
+    /// its outcome unknown, so a person must check).
+    pub status: &'static str,
+    /// Why it waits or wasn't sent.
+    pub detail: Option<String>,
+    /// When it went.
+    pub sent_at: Option<OffsetDateTime>,
+}
+
+/// The email of `reminder`'s latest approved draft, if one was made.
+pub async fn delivery(
+    pool: &PgPool,
+    clinic: TenantId,
+    reminder: crate::reminders::ReminderId,
+) -> Result<Option<Delivery>, sqlx::Error> {
+    let row = sqlx::query!(
+        "select o.status, o.last_error, o.sent_at
+         from reminder_messages m join outbox_messages o on o.tenant_id = m.tenant_id and o.id = m.message_id
+         where m.tenant_id = $1 and m.reminder_id = $2
+         order by m.created_at desc, m.message_id desc limit 1",
+        clinic.as_uuid(),
+        reminder.as_uuid(),
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|row| {
+        let status = match row.status.as_str() {
+            "sent" => "sent",
+            "cancelled" => "withdrawn",
+            "blocked" | "unconfirmed" | "expired" => "not_sent",
+            _ => "queued",
+        };
+        let detail = row
+            .last_error
+            .map(|error| error.strip_prefix("waiting: ").map_or(error.clone(), str::to_owned));
+        Delivery {
+            status,
+            detail: if status == "sent" { None } else { detail },
+            sent_at: row.sent_at,
+        }
+    }))
+}

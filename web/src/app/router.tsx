@@ -35,6 +35,12 @@ export const router = createBrowserRouter([
         }),
       },
       {
+        path: "replies",
+        lazy: async () => ({
+          Component: (await import("@/features/replies/replies-page")).RepliesPage,
+        }),
+      },
+      {
         path: "activity",
         lazy: async () => ({
           Component: (await import("@/features/activity/activity-page")).ActivityPage,

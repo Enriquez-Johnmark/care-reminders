@@ -11,3 +11,7 @@ export const reminderKeys = {
 export const activityKeys = {
   list: (actor: string, action: string) => ["activity", actor, action] as const,
 }
+
+export const replyKeys = {
+  list: () => ["replies"] as const,
+}

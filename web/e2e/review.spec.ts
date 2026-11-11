@@ -29,6 +29,11 @@ test("the coordinator approves a reminder, sees an edit blocked, uses the templa
   await expect(page.getByText(/The reminder never says why/)).toBeVisible()
   await page.getByRole("button", { name: "Approve this text" }).click()
   await expect(page.getByText("This exact text was approved on")).toBeVisible()
+  // Its email waits for the sending hours or has gone, as the clock says;
+  // a patient who asked not to be emailed is never emailed.
+  await expect(page.getByText(/^(Waiting to go|Sent|Not emailed)$/)).toBeVisible({
+    timeout: 15_000,
+  })
 
   await page.getByRole("link", { name: "Reminders" }).first().click()
   await ready.first().getByRole("link").click()
@@ -46,6 +51,9 @@ test("the coordinator approves a reminder, sees an edit blocked, uses the templa
   await page.getByLabel(/Why\?/).fill("Called the patient instead")
   await page.getByRole("button", { name: "Skip it" }).click()
   await expect(page.getByText("This reminder is finished.")).toBeVisible()
+
+  await page.getByRole("link", { name: "Replies" }).click()
+  await expect(page.getByText("No replies yet.")).toBeVisible()
 })
 
 test("the administrator sees every step in the activity log", async ({ page }) => {

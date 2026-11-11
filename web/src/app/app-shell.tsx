@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 type NavItem = { to: string; label: string }
 
 const reminders: NavItem = { to: "/", label: "Reminders" }
+const replies: NavItem = { to: "/replies", label: "Replies" }
 const activity: NavItem = { to: "/activity", label: "Activity" }
 
 /** The logged-in frame: a letterhead across the top, as on the clinic's own
@@ -22,7 +23,8 @@ export function AppShell() {
   // dropped connection) is retried while the person stays where they are.
   if (me.error instanceof ApiError && me.error.isNotLoggedIn)
     return <Navigate to="/login" replace />
-  const items = me.data?.role === "administrator" ? [reminders, activity] : [reminders]
+  const items =
+    me.data?.role === "administrator" ? [reminders, replies, activity] : [reminders, replies]
   return (
     <div className="flex min-h-svh flex-col">
       <header className="border-b bg-card">

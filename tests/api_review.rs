@@ -100,6 +100,7 @@ async fn d1_the_administrator_cant_approve_and_the_coordinator_can(pool: PgPool)
     assert_eq!((by_admin.status, by_coordinator.status), (403, 204));
     let after = s.get(&format!("/api/reminders/{id}"), &s.coordinator).await;
     assert!(after["approved_at"].is_string());
+    assert_eq!(after["delivery"]["status"], "queued", "{after}");
     let queue = s.get("/api/queue", &s.coordinator).await;
     assert_eq!(queue.as_array().unwrap().last().unwrap()["status"], "approved");
 }
