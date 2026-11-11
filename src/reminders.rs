@@ -105,11 +105,73 @@ pub struct Drafter<M> {
 }
 
 /// A draft to store.
-struct NewDraft {
-    source: &'static str,
-    model: Option<String>,
-    text: String,
-    checked: Checked,
+pub(crate) struct NewDraft {
+    /// Who wrote it: `model`, `template` or `coordinator`.
+    pub(crate) source: &'static str,
+    /// The model that answered, if one did.
+    pub(crate) model: Option<String>,
+    /// Its text, with its fill-ins.
+    pub(crate) text: String,
+    /// What the checks found.
+    pub(crate) checked: Checked,
+}
+
+/// Stores `draft` as attempt `attempt` of `reminder`, logging that it was
+/// drafted, by `actor`, and what the checks found (G1).
+pub(crate) async fn add_draft(
+    tx: &mut sqlx::PgConnection,
+    clinic: ClinicId,
+    reminder: ReminderId,
+    attempt: i32,
+    draft: &NewDraft,
+    now: time::OffsetDateTime,
+    actor: &str,
+) -> Result<DraftId, sqlx::Error> {
+    let id = DraftId::new();
+    let encode = |err: serde_json::Error| sqlx::Error::Encode(err.into());
+    sqlx::query!(
+        "insert into drafts (id, tenant_id, reminder_id, attempt, source, model, text, problems, warnings, grade,
+                             created_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        id.as_uuid(),
+        clinic.as_uuid(),
+        reminder.as_uuid(),
+        attempt,
+        draft.source,
+        draft.model,
+        draft.text,
+        serde_json::to_value(&draft.checked.problems).map_err(encode)?,
+        serde_json::to_value(&draft.checked.warnings).map_err(encode)?,
+        draft.checked.grade,
+        now,
+    )
+    .execute(&mut *tx)
+    .await?;
+    for (action, details) in [
+        (
+            "reminder.drafted",
+            json!({ "draft": id, "attempt": attempt, "source": draft.source, "model": draft.model }),
+        ),
+        (
+            "reminder.checked",
+            json!({
+                "draft": id, "blocked": !draft.checked.problems.is_empty(), "problems": draft.checked.problems,
+                "warnings": draft.checked.warnings, "grade": draft.checked.grade,
+            }),
+        ),
+    ] {
+        let event = AuditEvent {
+            tenant: clinic,
+            at: now,
+            actor: if action == "reminder.checked" { "system" } else { actor },
+            action,
+            subject_type: "reminder",
+            subject_id: reminder.as_uuid(),
+            details,
+        };
+        audit::record(&mut *tx, &event).await?;
+    }
+    Ok(id)
 }
 
 impl<M: LanguageModel> Drafter<M> {
@@ -183,7 +245,13 @@ impl<M: LanguageModel> Drafter<M> {
     }
 
     /// Reminder `number`'s draft, from the model or the template, checked.
-    async fn write(&self, clinic: ClinicId, kind: Kind, number: u8, tone: Tone) -> Result<NewDraft, sqlx::Error> {
+    pub(crate) async fn write(
+        &self,
+        clinic: ClinicId,
+        kind: Kind,
+        number: u8,
+        tone: Tone,
+    ) -> Result<NewDraft, sqlx::Error> {
         let Some(model) = &self.model else {
             let text = template(number);
             let checked = check(&text);
@@ -278,8 +346,7 @@ impl<M: LanguageModel> Drafter<M> {
         draft: &NewDraft,
     ) -> Result<bool, sqlx::Error> {
         let now = self.clock.now();
-        let (reminder, draft_id) = (ReminderId::new(), DraftId::new());
-        let encode = |err: serde_json::Error| sqlx::Error::Encode(err.into());
+        let reminder = ReminderId::new();
         let mut tx = self.pool.begin().await?;
         let added = sqlx::query!(
             "insert into reminders (id, tenant_id, follow_up_id, number, planned_on, created_at)
@@ -297,37 +364,16 @@ impl<M: LanguageModel> Drafter<M> {
             // Another worker drafted it first.
             return Ok(false);
         }
-        sqlx::query!(
-            "insert into drafts (id, tenant_id, reminder_id, attempt, source, model, text, problems, warnings, grade,
-                                 created_at)
-             values ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, $10)",
-            draft_id.as_uuid(),
-            clinic.as_uuid(),
-            reminder.as_uuid(),
-            draft.source,
-            draft.model,
-            draft.text,
-            serde_json::to_value(&draft.checked.problems).map_err(encode)?,
-            serde_json::to_value(&draft.checked.warnings).map_err(encode)?,
-            draft.checked.grade,
+        add_draft(
+            &mut tx,
+            clinic,
+            reminder,
+            1,
+            draft,
             now,
+            if draft.source == "model" { "model" } else { "system" },
         )
-        .execute(&mut *tx)
         .await?;
-        let event = AuditEvent {
-            tenant: clinic,
-            at: now,
-            actor: if draft.source == "model" { "model" } else { "system" },
-            action: "reminder.drafted",
-            subject_type: "reminder",
-            subject_id: reminder.as_uuid(),
-            details: json!({
-                "follow_up": follow_up, "number": number, "source": draft.source, "model": draft.model,
-                "blocked": !draft.checked.problems.is_empty(), "problems": draft.checked.problems,
-                "grade": draft.checked.grade,
-            }),
-        };
-        audit::record(&mut *tx, &event).await?;
         tx.commit().await?;
         Ok(true)
     }
