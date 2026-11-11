@@ -210,7 +210,13 @@ impl PatientRecord {
                     if !about(&resource["subject"]["reference"]) {
                         return Err(refuse("is about another patient"));
                     }
-                    record.results.push(read_result(resource).map_err(refuse)?);
+                    // Vital signs, surveys and results the lab hasn't
+                    // finalised, or withdrew, aren't results the rules use.
+                    if is_lab(resource)
+                        && matches!(resource["status"].as_str(), Some("final" | "amended" | "corrected"))
+                    {
+                        record.results.push(read_result(resource).map_err(refuse)?);
+                    }
                 }
                 "Encounter" => {
                     if !about(&resource["subject"]["reference"]) {
@@ -320,7 +326,10 @@ fn read_result(resource: &Value) -> Result<LabResult, &'static str> {
         code,
         name,
         abnormal,
-        effective: date(&resource["effectiveDateTime"]).ok_or("no valid date")?,
+        effective: date(&resource["effectiveDateTime"])
+            .or_else(|| date(&resource["effectivePeriod"]["start"]))
+            .or_else(|| date(&resource["issued"]))
+            .ok_or("no valid date")?,
     })
 }
 
@@ -341,6 +350,16 @@ fn read_appointment(resource: &Value) -> Result<Appointment, &'static str> {
         kind: first_code(&resource["appointmentType"]).ok_or("no appointment type")?,
         start,
     })
+}
+
+/// Whether an Observation is a laboratory result.
+fn is_lab(resource: &Value) -> bool {
+    resource["category"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|category| category["coding"].as_array().into_iter().flatten())
+        .any(|coding| coding["code"] == "laboratory")
 }
 
 fn id(resource: &Value) -> Result<String, &'static str> {

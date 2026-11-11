@@ -178,3 +178,34 @@ fn h2_an_unfinished_screening_and_a_visit_that_isnt_a_hospital_stay_are_left_out
 
     assert!(record.screenings.is_empty() && record.stays.is_empty());
 }
+
+#[test]
+fn h2_only_final_lab_results_are_read_and_other_observations_are_left_out() {
+    let mut vital = result("o2", "H");
+    vital["category"] = json!([{ "coding": [{ "code": "vital-signs" }] }]);
+    vital.as_object_mut().unwrap().remove("interpretation");
+    let mut mistaken = result("o3", "H");
+    mistaken["status"] = json!("entered-in-error");
+    let mut corrected = result("o4", "H");
+    corrected["status"] = json!("corrected");
+
+    let record = PatientRecord::read(&bundle(vec![patient(), vital, mistaken, corrected])).unwrap();
+
+    let ids: Vec<&str> = record.results.iter().map(|r| r.fhir_id.as_str()).collect();
+    assert_eq!(ids, ["o4"]);
+}
+
+#[test]
+fn h2_a_results_date_may_come_from_its_period_or_when_it_was_issued() {
+    let mut period = result("o2", "H");
+    period.as_object_mut().unwrap().remove("effectiveDateTime");
+    period["effectivePeriod"] = json!({ "start": "2026-10-21T08:00:00Z" });
+    let mut issued = result("o3", "H");
+    issued.as_object_mut().unwrap().remove("effectiveDateTime");
+    issued["issued"] = json!("2026-10-22T10:00:00Z");
+
+    let record = PatientRecord::read(&bundle(vec![patient(), period, issued])).unwrap();
+
+    let dates: Vec<_> = record.results.iter().map(|r| r.effective).collect();
+    assert_eq!(dates, [date!(2026 - 10 - 21), date!(2026 - 10 - 22)]);
+}
