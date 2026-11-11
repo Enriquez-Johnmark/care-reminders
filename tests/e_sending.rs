@@ -288,3 +288,38 @@ async fn set_email(pool: &PgPool, patient: &str, address: &str) {
         .await
         .unwrap();
 }
+
+#[sqlx::test(migrator = "care_reminders::MIGRATOR")]
+async fn c6_an_email_whose_date_passes_while_it_waits_is_held_back_for_approving_again(pool: PgPool) {
+    let s = setup(pool).await;
+    let (draft, _) = s.drafts().await.remove(0);
+    // Due by Saturday 14 November; approved that Saturday, so it waits for Monday.
+    sqlx::query(
+        "update follow_ups f set due_by = '2026-11-14' from reminders r where r.follow_up_id = f.id and r.id = $1",
+    )
+    .bind(draft.reminder.as_uuid())
+    .execute(&s.pool)
+    .await
+    .unwrap();
+    s.clock.advance(Duration::days(4) + Duration::hours(1));
+    s.approve(&draft).await;
+
+    s.clock.advance(Duration::days(2));
+    let monday = s.send().await;
+
+    assert_eq!(monday, 0, "{:?}", s.sent_bodies().await);
+    let delivery = care_reminders::sending::delivery(&s.pool, s.coordinator.tenant, draft.reminder)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(delivery.status, "not_sent");
+    assert!(delivery.detail.unwrap().contains("has passed"));
+    // Approved again, it asks the patient to book as soon as they can.
+    s.approve(&draft).await;
+    assert_eq!(s.send().await, 1);
+    let bodies = s.sent_bodies().await;
+    assert!(
+        bodies[0].contains("as soon as you can") && !bodies[0].contains("November 14"),
+        "{bodies:?}"
+    );
+}

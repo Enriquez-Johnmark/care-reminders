@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select f.stopped_at is not null as \"stopped!\", r.finished_at is not null as \"finished!\", p.id as patient, p.no_email, p.email, p.not_current,\n                    d.text, a.content_hash as \"approved_hash?\",\n                    d.attempt = (select max(attempt) from drafts\n                                 where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",\n                    coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"\n             from reminder_messages m\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = m.tenant_id and d.id = m.draft_id\n             left join approvals a on a.tenant_id = m.tenant_id and a.draft_id = m.draft_id\n             left join clinic_settings s on s.tenant_id = m.tenant_id\n             where m.tenant_id = $1 and m.message_id = $2",
+  "query": "select f.stopped_at is not null as \"stopped!\", r.finished_at is not null as \"finished!\", p.id as patient, p.no_email, p.email, p.not_current,\n                    f.due_by, d.text, a.content_hash as \"approved_hash?\",\n                    d.attempt = (select max(attempt) from drafts\n                                 where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",\n                    coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"\n             from reminder_messages m\n             join reminders r on r.tenant_id = m.tenant_id and r.id = m.reminder_id\n             join follow_ups f on f.tenant_id = r.tenant_id and f.id = r.follow_up_id\n             join patients p on p.tenant_id = f.tenant_id and p.id = f.patient_id\n             join drafts d on d.tenant_id = m.tenant_id and d.id = m.draft_id\n             left join approvals a on a.tenant_id = m.tenant_id and a.draft_id = m.draft_id\n             left join clinic_settings s on s.tenant_id = m.tenant_id\n             where m.tenant_id = $1 and m.message_id = $2",
   "describe": {
     "columns": [
       {
@@ -61,6 +61,17 @@
       },
       {
         "ordinal": 6,
+        "name": "due_by",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "follow_ups",
+            "name": "due_by"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "text",
         "type_info": "Text",
         "origin": {
@@ -71,7 +82,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "approved_hash?",
         "type_info": "Text",
         "origin": {
@@ -82,13 +93,13 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "latest!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "time_zone!",
         "type_info": "Text",
         "origin": "Expression"
@@ -108,10 +119,11 @@
       true,
       true,
       false,
+      false,
       true,
       null,
       null
     ]
   },
-  "hash": "e10635fa5b0447ea0b8cd3172f0233f99862b7b7f186a6896fd1eb47fb5790cd"
+  "hash": "12ff39f756dff2974c3d852cf39889a0d12d62830ba63dfedc43e8807d46d9e4"
 }

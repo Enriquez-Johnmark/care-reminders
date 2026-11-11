@@ -142,6 +142,12 @@ pub enum FillError {
     Empty(&'static str),
 }
 
+/// A date as a reminder gives it, e.g. "December 9, 2026".
+pub fn date_text(date: Date) -> Option<String> {
+    date.format(format_description!("[month repr:long] [day padding:none], [year]"))
+        .ok()
+}
+
 /// `draft` with each fill-in replaced by its value (C6), in one pass, so a
 /// value is never itself filled. A draft with anything else in braces, or a
 /// fill-in with no value, is refused: never sent half-filled.
@@ -149,10 +155,7 @@ pub fn fill(draft: &str, values: &FillIns) -> Result<String, FillError> {
     if values.due_by < values.today {
         return fill_overdue(draft, values);
     }
-    let due_by = values
-        .due_by
-        .format(format_description!("[month repr:long] [day padding:none], [year]"))
-        .map_err(|_| FillError::Empty("due_by"))?;
+    let due_by = date_text(values.due_by).ok_or(FillError::Empty("due_by"))?;
     let mut filled = String::with_capacity(draft.len() + 100);
     let mut rest = draft;
     while let Some(open) = rest.find(['{', '}']) {

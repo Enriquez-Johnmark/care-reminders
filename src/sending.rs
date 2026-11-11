@@ -121,7 +121,7 @@ impl SendingRules {
         let unavailable = |err: sqlx::Error| CheckFailed::Unavailable(err.to_string());
         let row = sqlx::query!(
             "select f.stopped_at is not null as \"stopped!\", r.finished_at is not null as \"finished!\", p.id as patient, p.no_email, p.email, p.not_current,
-                    d.text, a.content_hash as \"approved_hash?\",
+                    f.due_by, d.text, a.content_hash as \"approved_hash?\",
                     d.attempt = (select max(attempt) from drafts
                                  where tenant_id = d.tenant_id and reminder_id = d.reminder_id) as \"latest!\",
                     coalesce(s.time_zone, 'America/New_York') as \"time_zone!\"
@@ -165,6 +165,15 @@ impl SendingRules {
             )));
         }
         let now = self.clock.now();
+        let hours = |err: HoursError| CheckFailed::Unavailable(err.to_string());
+        // The date was filled in at approval; one that has passed while the
+        // email waited is never sent. Approved again, it asks the patient to
+        // book as soon as they can.
+        let today = crate::sending_hours::local_day(now, &row.time_zone).map_err(hours)?;
+        let date = crate::drafting::date_text(row.due_by).unwrap_or_default();
+        if row.due_by < today && !date.is_empty() && email.body_text.contains(&date) {
+            return refuse("the date to book by has passed since it was approved; approve it again");
+        }
         if let Some(why) = row.not_current {
             return Err(CheckFailed::NotUntil {
                 until: now + NOT_CURRENT_WAIT,
@@ -187,7 +196,6 @@ impl SendingRules {
         .fetch_all(&self.pool)
         .await
         .map_err(unavailable)?;
-        let hours = |err: HoursError| CheckFailed::Unavailable(err.to_string());
         if let Some(until) = cap_until(&sent, now, &row.time_zone).map_err(hours)? {
             return Err(CheckFailed::NotUntil {
                 until,
