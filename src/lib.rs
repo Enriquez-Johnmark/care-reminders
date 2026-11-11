@@ -4,6 +4,7 @@
 //! and every step is audited.
 
 pub mod evidence;
+pub mod fhir;
 pub mod html;
 pub mod made_up;
 
