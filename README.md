@@ -4,6 +4,12 @@ Finds a clinic's patients who are due for follow-up care and reminds them, with 
 
 **Status:** building. M1–M6 (data and fetching; rules and follow-ups; drafts and checks; logins, review and the activity log; sending and stops; measurement) are done, with all 43 acceptance criteria proven ([the evidence page](docs/evidence/m6.html)); M7 (the showcase) is next. See [`AGENTS.md`](AGENTS.md) for the phases and [`docs/architecture.md`](docs/architecture.md) for the build order.
 
+## See it
+
+A 2-minute captioned walkthrough and screenshots are in [`docs/showcase/`](docs/showcase/): the rules choosing who is due, a coordinator approving Claude's draft, the email the patient gets, the opt-out page, the sending caps, a blocked edit, a reply and the activity log.
+
+![The coordinator reviewing a reminder: why the patient is due, and Claude's words beside the clinic's template](docs/showcase/desktop-2-review.png)
+
 ## What works so far
 
 - **Made-up data:** 25 made-up patients of Example Family Practice, a made-up US primary-care clinic, as FHIR R4 bundles in [`demo/patients/`](demo/patients/). They have lab results, hospital stays, screenings and appointments, and five tricky cases are planted on purpose: a patient who already booked, one who opted out of screening reminders, one who asked not to be emailed, one with a sensitive result, and one discharged too long ago to be due. Every resource carries the HL7 "test health data" label (`HTEST`), and CI fails if a file doesn't, or if anything outside the research documents names a real company (`a1_*`, `a3_*`).

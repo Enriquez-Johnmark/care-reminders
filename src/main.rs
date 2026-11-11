@@ -47,9 +47,9 @@ async fn run() -> anyhow::Result<()> {
         Some("clinic") if args.get(1).map(String::as_str) == Some("add") => {
             let (name, email) = (option(&args, "--name")?, option(&args, "--email")?);
             let pool = connect().await?;
-            let accounts = Accounts::new(pool.clone(), Arc::new(SystemClock));
+            let accounts = Accounts::new(pool.clone(), clock()?);
             let clinic = accounts.create(name, email).await.context("adding the clinic")?;
-            care_reminders::rules::Rules::new(pool, Arc::new(SystemClock))
+            care_reminders::rules::Rules::new(pool, clock()?)
                 .install_defaults(clinic, "operator")
                 .await
                 .context("giving the clinic its default rules")?;
@@ -59,7 +59,7 @@ async fn run() -> anyhow::Result<()> {
         Some("clinic") if args.get(1).map(String::as_str) == Some("set-fhir-server") => {
             let clinic = clinic_option(&args)?;
             let address = ServerAddress::parse(option(&args, "--url")?)?;
-            FhirServers::new(connect().await?, Arc::new(SystemClock))
+            FhirServers::new(connect().await?, clock()?)
                 .set(clinic, &address, "operator")
                 .await
                 .context("setting the FHIR server")?;
@@ -69,7 +69,7 @@ async fn run() -> anyhow::Result<()> {
         Some("clinic") if args.get(1).map(String::as_str) == Some("add-coordinator") => {
             let clinic = clinic_option(&args)?;
             let (email, name) = (option(&args, "--email")?, option(&args, "--name")?);
-            care_reminders::review::Reviews::new(connect().await?, Arc::new(SystemClock))
+            care_reminders::review::Reviews::new(connect().await?, clock()?)
                 .add_coordinator(clinic, email, name, "operator")
                 .await
                 .context("adding the coordinator")?;
@@ -93,7 +93,7 @@ async fn run() -> anyhow::Result<()> {
         Some("serve") => serve(args.iter().any(|arg| arg == "--recorded")).await,
         Some("fetch") => {
             let clinic = clinic_option(&args)?;
-            let outcome = FhirServers::new(connect().await?, Arc::new(SystemClock))
+            let outcome = FhirServers::new(connect().await?, clock()?)
                 .fetch(clinic, "operator")
                 .await?;
             println!(
@@ -113,7 +113,7 @@ async fn run() -> anyhow::Result<()> {
         }
         Some("load-made-up") => {
             let address = ServerAddress::parse(option(&args, "--url")?)?;
-            let today = care_reminders::engine::clock::Clock::now(&SystemClock).date();
+            let today = clock()?.now().date();
             let loaded = care_reminders::fhir_server::load_made_up(&address, today).await?;
             println!("loaded {loaded} made-up patients into {address}");
             Ok(())
@@ -134,16 +134,10 @@ async fn run() -> anyhow::Result<()> {
                 &setting("PUBLIC_BASE_URL", "http://127.0.0.1:3000"),
                 &setting("REPLY_DOMAIN", "replies.example-family-practice.test"),
             );
-            let received = care_reminders::sending::simulate_reply(
-                &connect().await?,
-                Arc::new(SystemClock),
-                &sending,
-                clinic,
-                patient,
-                text,
-            )
-            .await
-            .context("taking in the reply")?;
+            let received =
+                care_reminders::sending::simulate_reply(&connect().await?, clock()?, &sending, clinic, patient, text)
+                    .await
+                    .context("taking in the reply")?;
             println!("{received:?}");
             Ok(())
         }
@@ -219,7 +213,7 @@ fn clinic_option(args: &[String]) -> anyhow::Result<ClinicId> {
 /// `--recorded`, or by the clinic's template when there is neither.
 async fn work(args: &[String]) -> anyhow::Result<()> {
     let model = choose_model(args.iter().any(|arg| arg == "--recorded"))?;
-    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+    let clock = clock()?;
     run_worker(connect().await?, clock, model).await;
     Ok(())
 }
@@ -299,7 +293,7 @@ async fn serve(recorded: bool) -> anyhow::Result<()> {
         .run(&pool)
         .await
         .context("running migrations")?;
-    let clock: Arc<dyn care_reminders::engine::clock::Clock> = Arc::new(SystemClock);
+    let clock = clock()?;
 
     let master = care_reminders::engine::files::MasterKey::from_hex(
         &std::env::var("MASTER_KEY")
@@ -396,7 +390,7 @@ async fn outbox_drain() -> anyhow::Result<()> {
         .init();
     let setting = |name: &str, default: &str| std::env::var(name).unwrap_or_else(|_| default.to_owned());
     let pool = connect().await?;
-    let clock = drain_clock()?;
+    let clock = clock()?;
     finish(&pool, clock.clone()).await.context("releasing reminders")?;
     let mailer = MailpitMailer::new(
         &setting("MAILPIT_URL", "http://localhost:8025"),
@@ -413,14 +407,17 @@ async fn outbox_drain() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The system clock; in a test build only, the time in `CARE_REMINDERS_NOW`
-/// if set, so the crash test sends inside the sending hours whatever the day.
-fn drain_clock() -> anyhow::Result<Arc<dyn care_reminders::engine::clock::Clock>> {
+/// The system clock. In a test build only (`--features failpoints`), with
+/// `CARE_REMINDERS_NOW` set, the real clock moved so that it started at that
+/// time and runs on from it: the crash test and the showcase then send inside
+/// the sending hours, and show the demo day, whatever the real time is.
+fn clock() -> anyhow::Result<Arc<dyn care_reminders::engine::clock::Clock>> {
     #[cfg(feature = "failpoints")]
     if let Ok(now) = std::env::var("CARE_REMINDERS_NOW") {
+        use care_reminders::engine::clock::{Clock, ShiftedClock};
         let at = time::OffsetDateTime::parse(&now, &time::format_description::well_known::Rfc3339)
             .context("CARE_REMINDERS_NOW is not an RFC 3339 time")?;
-        return Ok(Arc::new(care_reminders::engine::clock::FixedClock::new(at)));
+        return Ok(Arc::new(ShiftedClock::new(at - SystemClock.now())));
     }
     Ok(Arc::new(SystemClock))
 }
