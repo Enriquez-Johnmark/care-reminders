@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into fhir_servers (tenant_id, base_url, set_at) values ($1, $2, $3)\n             on conflict (tenant_id) do update set base_url = excluded.base_url, set_at = excluded.set_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f53a92c919e9a0a6394377ad9135131a61e87c1fef91e6a28a9a2af695f6cf75"
+}

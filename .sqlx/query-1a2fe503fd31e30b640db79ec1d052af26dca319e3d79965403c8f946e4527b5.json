@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select base_url from fhir_servers where tenant_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "base_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fhir_servers",
+            "name": "base_url"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1a2fe503fd31e30b640db79ec1d052af26dca319e3d79965403c8f946e4527b5"
+}
